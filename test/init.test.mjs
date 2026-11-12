@@ -234,13 +234,14 @@ describe('upgrade', async () => {
     };
     const dir = project({ '.pm/config.json': JSON.stringify(cfg), '.pm/E01-base/README.md': '---\nid: E01\nnombre: Base\n---\n', 'scripts/pm/check.mjs': '// viejo\n' });
     const plan = planUpgrade(dir, KIT);
-    expect(plan.actions.every((a) => a.path.startsWith('scripts/') || a.path.startsWith('.githooks/'))).toBe(true);
+    expect(plan.actions.every((a) => a.path.startsWith('scripts/') || a.path.startsWith('.githooks/') || a.path === 'package.json')).toBe(true);
     expect(plan.actions.find((a) => a.path === 'scripts/pm/check.mjs').op).toBe('update');
     expect(plan.actions.some((a) => a.path.endsWith('sync-issue.mjs'))).toBe(false);
     applyInit(dir, plan);
     expect(existsSync(path.join(dir, 'docs'))).toBe(false);
     expect(existsSync(path.join(dir, '.pm/templates/story.md'))).toBe(false);
     expect(existsSync(path.join(dir, 'CLAUDE.md'))).toBe(false);
+    expect(JSON.parse(read(dir, 'package.json')).scripts['pm:next']).toBe('node scripts/pm/next.mjs');
     expect(JSON.parse(read(dir, '.pm/config.json'))).toEqual(cfg);
     mkdirSync(path.join(dir, '.pm/E01-base/HU-001-algo'), { recursive: true });
     writeFileSync(

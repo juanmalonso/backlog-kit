@@ -302,9 +302,10 @@ export function mergeClaude(current, block) {
 }
 
 /**
- * Plan de `upgrade`: solo los archivos del kit (scripts y hooks) según el .pm/config.json que ya
- * tiene el proyecto. No crea archivos iniciales ni fusiona nada: para proyectos ya configurados,
- * incluidos los que adoptaron backlog-kit con su config escrita a mano.
+ * Plan de `upgrade`: los archivos del kit (scripts y hooks) según el .pm/config.json que ya tiene
+ * el proyecto, más los comandos pm:* nuevos en package.json (sin pisar los que existen). No crea
+ * archivos iniciales: para proyectos ya configurados, incluidos los que adoptaron backlog-kit con
+ * su config escrita a mano.
  */
 export function planUpgrade(root, kitDir) {
   const file = path.join(root, '.pm', 'config.json');
@@ -324,7 +325,7 @@ export function planUpgrade(root, kitDir) {
     },
     kitDir,
   );
-  return { config: { ...raw, github: { enabled: cfg.github?.enabled !== false }, gitGuard: { enabled: cfg.gitGuard?.enabled !== false } }, actions: plan.actions.filter((a) => a.kind === 'kit'), conflicts: [] };
+  return { config: { ...raw, github: { enabled: cfg.github?.enabled !== false }, gitGuard: { enabled: cfg.gitGuard?.enabled !== false } }, actions: plan.actions.filter((a) => a.kind === 'kit' || a.kind === 'merge-package'), conflicts: [] };
 }
 
 /** Escribe las acciones y deja el proyecto andando: hooks de git y backlog generado. */

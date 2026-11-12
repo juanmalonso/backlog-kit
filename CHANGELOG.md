@@ -30,7 +30,7 @@
 
 ## 0.2.0
 
-- `backlog-kit upgrade` y el comando "Backlog Kit: Actualizar scripts": actualizan solo scripts y
+- `backlog-kit upgrade` y el comando "Backlog Kit: Actualizar scripts": actualizan scripts, hooks y los comandos `pm:*` de `package.json`, y
   hooks según el `.pm/config.json` existente, sin archivos iniciales ni merges. Sirve para
   proyectos que adoptan backlog-kit con su config escrita a mano.
 - `.pm/backlog.md` muestra los campos lista (por ejemplo requisitos) en la tabla por épica, salvo
