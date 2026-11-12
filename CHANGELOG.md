@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.3.0
+
+**Scripts**
+- `pm:start` (en curso + rama), `pm:pr` (PR armado desde el README), `pm:next` (qué tomar después),
+  `pm:stats` (días por estado, cerradas por semana, antigüedad) y `pm:new` (historia desde la plantilla).
+- `prepare-commit-msg`: los commits llevan el id de la historia de la rama, también los de Claude.
+
+**Tablero**
+- PR y semáforo de CI en cada tarjeta; "espera", "destraba N" y motivo del bloqueo.
+- Panel de detalle con criterios tildables, log, dependencias y acciones (mover, loguear, empezar,
+  PR, trabajar con Claude).
+- Vista de dependencias (grafo en capas), carriles por épica o etapa y "+ Nueva".
+- Actividad de Claude en vivo por rama y, al pasar a review, la opción de revisar con Claude primero.
+
+**VS Code**
+- Panel lateral "Backlog" en el Explorador, ids clicables con hover en cualquier archivo y errores
+  del guard en Problemas.
+
+**Claude Code**
+- Hooks: la historia de la rama al arrancar, el README de la historia que nombrás, recordatorio de
+  log o criterios al cerrar el turno (una vez por sesión) y statusline.
+- Subagentes `revisor-criterios` / `criteria-reviewer` y `refinador` / `refiner`; skill de olas en
+  paralelo (`hu-ola` / `story-wave`).
+- Servidor MCP `backlog` (lectura en JSON; escrituras por los mismos scripts).
+- Plugin de Claude Code (`backlog-kit` y `backlog-kit-en`) con marketplace en este repo; el init
+  tiene un modo `--claude plugin` que no copia lo que trae el plugin.
+- Plantilla opcional de GitHub Action para "@claude" (`--claude-action`).
+
 ## 0.2.0
 
 - `backlog-kit upgrade` y el comando "Backlog Kit: Actualizar scripts": actualizan solo scripts y

@@ -6,6 +6,7 @@
 //   npx backlog-kit init [--dir .] [--lang es|en] [--prefix HU] [--main main] [--check "npm test"]
 //                        [--fields phase,stage,requirements,spec] [--epic "Nombre"]
 //                        [--no-skills] [--no-github] [--no-git-guard] [--no-ci] [--dry-run] [--force]
+//                        [--claude project|plugin] [--no-mcp] [--claude-action]
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyInit, planInit, planUpgrade } from '../src/init/scaffold.mjs';
@@ -40,6 +41,9 @@ try {
     github: !has('--no-github'),
     gitGuard: !has('--no-git-guard'),
     ci: !has('--no-ci'),
+    claude: value('--claude') === 'plugin' ? 'plugin' : 'project',
+    mcp: !has('--no-mcp'),
+    claudeAction: has('--claude-action'),
   },
   KIT,
 );

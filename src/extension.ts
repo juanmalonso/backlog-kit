@@ -2,6 +2,7 @@
 // Problemas e init del proyecto.
 import * as vscode from 'vscode';
 import { changed, logStory, openPr, openReadme, pickAndMove, startStory } from './actions';
+import { workWithClaude } from './claude';
 import { BoardPanel } from './board/panel';
 import { createStory } from './board/create';
 import { runGuard } from './editor/diagnostics';
@@ -110,6 +111,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('backlogKit.story.start', storyCommand((root, s) => startStory(root, s.id))),
     vscode.commands.registerCommand('backlogKit.story.log', storyCommand((root, s) => logStory(root, s.id))),
     vscode.commands.registerCommand('backlogKit.story.pr', storyCommand((root, s) => openPr(root, s.id))),
+    vscode.commands.registerCommand('backlogKit.story.claude', storyCommand((root, s) => workWithClaude(root, s.id, s.status))),
     vscode.commands.registerCommand('backlogKit.story.readme', storyCommand((_root, s) => openReadme(s.path, false))),
   );
 

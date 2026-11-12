@@ -15,13 +15,14 @@ are in `.pm/config.json`. Open the board in VS Code with "Backlog Kit: Open boar
 
 ```text
 1. Does the story exist?
-   - NO                                → /story-new
-   - YES, {{S.backlog}} or {{S.refining}}     → /story-refine (resolve questions with the user)
+   - NO                                → /{{skillPrefix}}story-new
+   - YES, {{S.backlog}} or {{S.refining}}     → /{{skillPrefix}}story-refine (resolve questions with the user)
    - YES, {{S.ready}}                      → step 2
-2. /story-advance {{storyPrefix}}-NNN {{S.inProgress}}  → creates the branch from origin/{{mainBranch}}
-3. Implement the plan. Milestone → /story-log. Cross-story decision → /doc-adr. Trap → /doc-finding.
-4. `{{checkCommand}}` clean → tick criteria → /story-advance {{storyPrefix}}-NNN {{S.review}} → PR{{#github}} with "Closes #<issue>"{{/github}}
-5. The user accepts → /story-advance {{storyPrefix}}-NNN {{S.done}}
+2. npm run pm:start -- {{storyPrefix}}-NNN  → {{S.inProgress}} and branch from origin/{{mainBranch}}
+3. Implement the plan. Milestone → /{{skillPrefix}}story-log. Cross-story decision → /{{skillPrefix}}doc-adr. Trap → /{{skillPrefix}}doc-finding.
+4. `{{checkCommand}}` clean → criteria-reviewer subagent → tick what was verified
+   → /{{skillPrefix}}story-advance {{storyPrefix}}-NNN {{S.review}}{{#github}} → npm run pm:pr (builds the PR with "Closes #<issue>"){{/github}}
+5. The user accepts → /{{skillPrefix}}story-advance {{storyPrefix}}-NNN {{S.done}}
 ```
 
 ### Statuses
@@ -46,11 +47,21 @@ Side states: {{S.blocked}} (with a note on what/who) and {{S.discarded}}.
 
 | Moment | Skill |
 |---|---|
-| New idea or request | `/story-new` |
-| Story without criteria, plan, or with questions | `/story-refine` |
-| Start, send to review, close, block | `/story-advance` |
-| Milestone within a story | `/story-log` |
-| "What's next?" | `/story-backlog` |
-{{#github}}| Someone opened an issue by hand | `/story-adopt-issue` |
-{{/github}}| Decision beyond one story | `/doc-adr` |
-| Trap or false hypothesis | `/doc-finding` |
+| New idea or request | `/{{skillPrefix}}story-new` |
+| Story without criteria, plan, or with questions | `/{{skillPrefix}}story-refine` |
+| Start, send to review, close, block | `/{{skillPrefix}}story-advance` |
+| Milestone within a story | `/{{skillPrefix}}story-log` |
+| "What's next?" | `/{{skillPrefix}}story-backlog` |
+{{#github}}| Someone opened an issue by hand | `/{{skillPrefix}}story-adopt-issue` |
+{{/github}}| Decision beyond one story | `/{{skillPrefix}}doc-adr` |
+| Trap or false hypothesis | `/{{skillPrefix}}doc-finding` |
+| Several ready stories in parallel | `/{{skillPrefix}}story-wave` |
+
+### Tools for Claude
+
+- **Automatic context**: at startup Claude gets the branch's story; if a message names a story, its README.
+  When a turn ends with code changed and no log entry today, it is reminded to record progress.
+- **Subagents**: `criteria-reviewer` (does the diff meet each criterion?, with evidence) and `refiner` (proposes criteria, plan and questions).
+{{#mcp}}- **`backlog` MCP**: `story_list`, `story_get`, `story_next`, `backlog_stats` (read) and `story_advance`, `story_log`,
+  `story_create`, `story_check_criterion` (they run the same scripts, with the same rules).
+{{/mcp}}- **Scripts**: `pm:next` (what to pick), `pm:start`, `pm:pr`, `pm:new`, `pm:stats`. Commits get the branch's story id automatically.

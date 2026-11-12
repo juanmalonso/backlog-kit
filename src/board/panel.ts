@@ -3,6 +3,7 @@
 // mismas que en la terminal y en los skills. Si el script rechaza, la tarjeta vuelve a su lugar.
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
+import { workWithClaude } from '../claude';
 import { changed, logStory, moveStory, openPr, openReadme, pickAndMove, startStory } from '../actions';
 import { boardData, configOf, storyDetail, toggleCriterion } from '../project';
 import { createStory } from './create';
@@ -101,6 +102,7 @@ export class BoardPanel {
     }
     if (m.type === 'start') return startStory(this.root, m.id);
     if (m.type === 'pr') return openPr(this.root, m.id);
+    if (m.type === 'claude') return workWithClaude(this.root, m.id, m.status);
     if (m.type === 'new') {
       const id = await createStory(this.root);
       if (id) {

@@ -18,17 +18,14 @@ The VS Code board does the same when you drag a card.
 | To | Verify first |
 |---|---|
 | {{S.inProgress}} | It is {{S.ready}} and its dependencies are resolved. Then: `git fetch && git switch -c <printed branch> origin/{{mainBranch}}`. Read the whole README before touching code |
-| {{S.review}} | `{{checkCommand}}` clean. Tick in the README **only** the criteria you verified. The script rejects unticked criteria; `--force` only with a `--note` explaining why |
+| {{S.review}} | `{{checkCommand}}` clean and the `criteria-reviewer` subagent reports nothing missing. Tick in the README **only** the criteria you verified. The script rejects unticked criteria; `--force` only with a `--note` explaining why |
 | {{S.done}} | **Only if the user explicitly accepted it.** Never on your own |
 | {{S.blocked}} | `--note "<what is missing> (depends on: <who/what>)"` is required |
 {{#github}}
 ## When moving to {{S.review}}, open the PR
 
 ```bash
-git push -u origin <branch>
-gh pr create --base {{mainBranch}} --title "[{{storyPrefix}}-NNN] <title>" --body "<summary, how it was verified>
-
-Closes #<issue>"
+npm run pm:pr        # push + PR with story, criteria, last log and Closes #<issue>
 ```
 
 The issue number comes from `npm run pm:issue -- {{storyPrefix}}-NNN`, never from the id.

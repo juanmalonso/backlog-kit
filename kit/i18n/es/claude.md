@@ -15,13 +15,14 @@ configuración está en `.pm/config.json`. El tablero se abre en VS Code con "Ba
 
 ```text
 1. ¿Existe la historia?
-   - NO                                → /hu-nueva
-   - SÍ, {{S.backlog}} o {{S.refining}}       → /hu-refinar (resolver preguntas con el usuario)
+   - NO                                → /{{skillPrefix}}hu-nueva
+   - SÍ, {{S.backlog}} o {{S.refining}}       → /{{skillPrefix}}hu-refinar (resolver preguntas con el usuario)
    - SÍ, {{S.ready}}                       → paso 2
-2. /hu-avanzar {{storyPrefix}}-NNN {{S.inProgress}}  → crea la rama desde origin/{{mainBranch}}
-3. Implementar según el plan. Hito → /hu-log. Decisión que trasciende → /doc-adr. Trampa → /doc-hallazgo.
-4. `{{checkCommand}}` limpio → tildar criterios → /hu-avanzar {{storyPrefix}}-NNN {{S.review}} → PR{{#github}} con "Closes #<issue>"{{/github}}
-5. El usuario acepta → /hu-avanzar {{storyPrefix}}-NNN {{S.done}}
+2. npm run pm:start -- {{storyPrefix}}-NNN  → {{S.inProgress}} y rama desde origin/{{mainBranch}}
+3. Implementar según el plan. Hito → /{{skillPrefix}}hu-log. Decisión que trasciende → /{{skillPrefix}}doc-adr. Trampa → /{{skillPrefix}}doc-hallazgo.
+4. `{{checkCommand}}` limpio → subagente revisor-criterios → tildar lo verificado
+   → /{{skillPrefix}}hu-avanzar {{storyPrefix}}-NNN {{S.review}}{{#github}} → npm run pm:pr (arma el PR con "Closes #<issue>"){{/github}}
+5. El usuario acepta → /{{skillPrefix}}hu-avanzar {{storyPrefix}}-NNN {{S.done}}
 ```
 
 ### Estados
@@ -46,11 +47,21 @@ Laterales: {{S.blocked}} (con nota de qué/quién) y {{S.discarded}}.
 
 | Momento | Skill |
 |---|---|
-| Idea o pedido nuevo | `/hu-nueva` |
-| Historia sin criterios, plan o con preguntas | `/hu-refinar` |
-| Empezar, pasar a review, cerrar, bloquear | `/hu-avanzar` |
-| Hito dentro de una historia | `/hu-log` |
-| "¿Qué hacemos ahora?" | `/hu-backlog` |
-{{#github}}| Alguien creó un issue a mano | `/hu-adoptar-issue` |
-{{/github}}| Decisión que trasciende una historia | `/doc-adr` |
-| Trampa o hipótesis que resultó falsa | `/doc-hallazgo` |
+| Idea o pedido nuevo | `/{{skillPrefix}}hu-nueva` |
+| Historia sin criterios, plan o con preguntas | `/{{skillPrefix}}hu-refinar` |
+| Empezar, pasar a review, cerrar, bloquear | `/{{skillPrefix}}hu-avanzar` |
+| Hito dentro de una historia | `/{{skillPrefix}}hu-log` |
+| "¿Qué hacemos ahora?" | `/{{skillPrefix}}hu-backlog` |
+{{#github}}| Alguien creó un issue a mano | `/{{skillPrefix}}hu-adoptar-issue` |
+{{/github}}| Decisión que trasciende una historia | `/{{skillPrefix}}doc-adr` |
+| Trampa o hipótesis que resultó falsa | `/{{skillPrefix}}doc-hallazgo` |
+| Varias listas a la vez, en paralelo | `/{{skillPrefix}}hu-ola` |
+
+### Herramientas para Claude
+
+- **Contexto automático**: al arrancar, Claude recibe la historia de la rama; si el mensaje nombra una historia, su README.
+  Al cerrar un turno con código tocado y sin log del día, se le recuerda registrar el avance.
+- **Subagentes**: `revisor-criterios` (¿el diff cumple cada criterio?, con evidencia) y `refinador` (propone criterios, plan y preguntas).
+{{#mcp}}- **MCP `backlog`**: `story_list`, `story_get`, `story_next`, `backlog_stats` (lectura) y `story_advance`, `story_log`,
+  `story_create`, `story_check_criterion` (corren los mismos scripts, con las mismas reglas).
+{{/mcp}}- **Scripts**: `pm:next` (qué tomar), `pm:start`, `pm:pr`, `pm:new`, `pm:stats`. Los commits llevan el id de la historia de la rama solos.

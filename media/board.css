@@ -214,3 +214,5 @@ button.small { padding: 1px 6px; font-size: 0.9em; margin-left: auto; }
   .layout { flex-direction: column; }
   .detail { position: static; max-width: none; width: calc(100% - 28px); margin: 0 14px 14px; flex: none; max-height: none; }
 }
+.claude-live { color: var(--vscode-charts-orange, #d18616); }
+button.claude { border: 1px solid var(--vscode-charts-orange, #d18616); }

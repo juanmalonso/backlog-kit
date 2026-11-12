@@ -8,6 +8,7 @@ import { createPm, section, toggleChecklist } from '../kit/scripts/lib/pm.mjs';
 import { createGh } from '../kit/scripts/lib/gh.mjs';
 import { ROLES } from '../kit/scripts/lib/config.mjs';
 import { blockedReason, dependencyIndex, storyOfBranch as ofBranch } from '../kit/scripts/lib/insights.mjs';
+import { claudeActivity } from './claude';
 
 export function findRoot(): string | undefined {
   const folders = vscode.workspace.workspaceFolders ?? [];
@@ -77,6 +78,12 @@ export async function boardData(root: string, { refreshPrs = false } = {}) {
   const views = raw.filter((s: any) => s.data).map((s: any) => pm.view(s));
   const idx = dependencyIndex(views, cfg);
   const prs = cfg.github?.enabled ? await openPrs(root, refreshPrs) : new Map<string, PrInfo>();
+  let activity = new Map<string, number>();
+  try {
+    activity = claudeActivity();
+  } catch {
+    // sin acceso a ~/.claude: sin actividad
+  }
   const stories = raw.map((s: any) => {
     const v = pm.view(s);
     return {
@@ -88,6 +95,7 @@ export async function boardData(root: string, { refreshPrs = false } = {}) {
       unlocks: idx.unlocks.get(v.id) ?? 0,
       blockedReason: v.status === cfg.states.blocked ? blockedReason(s, cfg) : null,
       pr: (v.branch && prs.get(v.branch)) || null,
+      claudeAgo: v.branch && activity.has(v.branch) ? activity.get(v.branch) : null,
     };
   });
   return {

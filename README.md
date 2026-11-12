@@ -9,6 +9,8 @@ Backlog de historias de usuario en markdown **dentro del repo**, con:
   principal y CI.
 - **Configurable**: idioma (español o inglés), prefijo de los ids, rama protegida, comando de
   chequeo y campos extra por historia.
+- **Integrado con Claude Code**: la historia de la rama en contexto, subagentes que revisan criterios
+  y refinan, servidor MCP del backlog, olas en paralelo y un plugin que se instala con `/plugin`.
 
 El estado de cada historia vive en un solo lugar: el frontmatter de su README. El tablero, el
 backlog generado y los issues de GitHub son vistas.
@@ -43,11 +45,17 @@ Requisitos: Node 20+ y git. Para GitHub, el CLI [`gh`](https://cli.github.com) a
 2. **Backlog Kit: Abrir tablero**. También desde la barra de estado, que muestra la historia de la
    rama actual (`HU-012 · EN_CURSO · 3/5`).
 3. En el tablero:
-   - Clic o `Enter` en una tarjeta: abre su README al costado.
-   - Arrastrar a otra columna, o `M` / botón **Mover…**: corre `pm:advance`. Las columnas válidas se
-     marcan al arrastrar. Si el script rechaza el cambio, la tarjeta vuelve a su lugar y ves el motivo.
-   - Al pasar a en curso, ofrece crear la rama de la historia.
-   - Filtros por épica, prioridad y texto; ocultar cerradas.
+   - Cada tarjeta muestra prioridad, criterios, issue, PR con el semáforo del CI, "⧗ espera HU-x"
+     si una dependencia no está lista, "↗ destraba N", el motivo si está bloqueada y "✳ Claude
+     activo" si hay una sesión de Claude Code trabajando en su rama.
+   - Clic: panel de detalle con la historia, **criterios tildables**, preguntas, log, dependencias y
+     acciones (mover, loguear, empezar, abrir PR, trabajar con Claude, README, issue).
+   - Arrastrar a otra columna, o `M`: corre `pm:advance` con las reglas de siempre. Al pasar a review
+     ofrece que Claude revise los criterios contra el diff primero.
+   - **Dependencias**: el grafo en capas; el borde más grueso es lo que más destraba.
+   - Carriles por épica o etapa, filtros, "+ Nueva".
+4. Fuera del tablero: panel **Backlog** en el Explorador, ids (`HU-012`, `ADR-004`) clicables con
+   hover en cualquier archivo y los errores del guard en la pestaña Problemas.
 
 Sin VS Code, el mismo init por terminal:
 
@@ -66,7 +74,7 @@ También desde VS Code: **Backlog Kit: Actualizar scripts**.
 
 Opciones de `init`: `--lang es|en`, `--prefix HU`, `--main main`, `--check "npm test"`,
 `--fields phase,stage,requirements,spec`, `--epic "Nombre"`, `--no-skills`, `--no-github`,
-`--no-git-guard`, `--no-ci`, `--dry-run`.
+`--no-git-guard`, `--no-ci`, `--claude project|plugin`, `--no-mcp`, `--claude-action`, `--dry-run`.
 
 ## Qué instala
 
@@ -84,6 +92,32 @@ El init es idempotente: los scripts se actualizan si cambiaron, lo que es del pr
 plantillas, skills, docs) no se pisa, y `package.json`, `.claude/settings.json` y `CLAUDE.md` se
 fusionan. El bloque de `CLAUDE.md` va entre `<!-- backlog-kit:begin -->` y `<!-- backlog-kit:end -->`.
 
+## Claude Code
+
+Lo que el init deja (o el plugin trae):
+
+| | Qué hace |
+|---|---|
+| Hook `SessionStart` | Si la rama es de una historia, Claude arranca con su estado, criterios pendientes, preguntas y último log |
+| Hook `UserPromptSubmit` | Si el mensaje nombra una historia, le agrega su README |
+| Hook `Stop` | Con código tocado y sin log del día (o "listo" con criterios pendientes), le recuerda registrar o verificar. Una vez por sesión |
+| Statusline | `HU-044 · EN_CURSO · 2/5` en la terminal de Claude |
+| Subagentes | `revisor-criterios` (¿el diff cumple cada criterio?, con evidencia) y `refinador` (criterios, plan y preguntas) |
+| Skill de olas | `/hu-ola`: varias historias listas en paralelo, una por worktree, con revisión independiente |
+| MCP `backlog` | `story_list`, `story_get`, `story_next`, `backlog_stats`, `story_advance`, `story_log`, `story_create`, `story_check_criterion` |
+| GitHub (opcional) | `--claude-action`: "@claude" en issues y PRs con las mismas skills |
+
+**Como plugin**, en vez de copiar todo al proyecto:
+
+```text
+/plugin marketplace add juanmalonso/backlog-kit
+/plugin install backlog-kit@backlog-kit        # o backlog-kit-en
+```
+
+y el init con `--claude plugin` (o "Plugin de Claude Code" en el asistente): el proyecto queda con
+`.pm/`, los scripts y la statusline; skills, subagentes, hooks y MCP los trae el plugin y se
+actualizan con él. Las skills quedan como `/backlog-kit:hu-nueva`.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -96,6 +130,11 @@ fusionan. El bloque de `CLAUDE.md` va entre `<!-- backlog-kit:begin -->` y `<!--
 | `npm run pm:sync -- <ID>` / `-- --todas` | Crea o actualiza el issue |
 | `npm run pm:issue -- <ID>` / `-- --verificar` | Resuelve y audita la relación historia ↔ issue |
 | `npm run pm:setup-github` | Labels y milestones |
+| `npm run pm:start -- <ID>` | En curso y rama desde `origin/<main>` (o se cambia a ella) |
+| `npm run pm:pr [-- <ID>]` | Push y PR con historia, criterios, último log y `Closes #` (por defecto, la de la rama) |
+| `npm run pm:next [-- --json]` | Qué tomar: review, listas sin dependencias pendientes y las que esperan |
+| `npm run pm:stats [-- --json]` | Días por estado, cerradas por semana y antigüedad |
+| `npm run pm:new -- --epic E00 --title "…"` | Historia nueva desde la plantilla con el próximo id |
 
 Las banderas aceptan las dos formas: `--nota`/`--note`, `--forzar`/`--force`,
 `--sin-github`/`--no-github`, `--todas`/`--all`, `--verificar`/`--verify`.
