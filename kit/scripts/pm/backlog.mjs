@@ -39,9 +39,15 @@ export function renderBacklog(pm, t) {
   out.push(`## ${t.readyTitle}`, '');
   if (!ready.length) out.push(t.nothingReady, '');
   else {
-    out.push(`| ${t.cols.id} | ${t.cols.priority} | ${t.cols.title} | ${t.cols.estimate} |`, '|---|---|---|---|');
+    const st = stageField ? [stageField] : [];
+    out.push(
+      `| ${t.cols.id} | ${st.map((f) => `${f.label} | `).join('')}${t.cols.priority} | ${t.cols.title} | ${t.cols.estimate} |`,
+      `|---|${st.map(() => '---|').join('')}---|---|---|`,
+    );
     for (const x of ready)
-      out.push(`| ${link(x)} | ${x.v.priority ?? '—'} | ${x.v.title} | ${x.v.estimate ?? '—'} |`);
+      out.push(
+        `| ${link(x)} | ${st.map((f) => `${x.v.extra[f.key] ?? '—'} | `).join('')}${x.v.priority ?? '—'} | ${x.v.title} | ${x.v.estimate ?? '—'} |`,
+      );
     out.push('');
   }
 
@@ -54,7 +60,13 @@ export function renderBacklog(pm, t) {
   }
   out.push(`| **${t.total}** | ${cfg.stateList.map((st) => count(stories, st) || '').join(' | ')} | ${stories.length} |`, '');
 
-  const extra = cfg.fields.filter((f) => !f.list);
+  // Campos en la tabla por épica, en el orden del config; `"backlog": false` los oculta.
+  const extra = cfg.fields.filter((f) => f.backlog !== false);
+  const cell = (v, f) => {
+    const x = v.extra[f.key];
+    if (Array.isArray(x)) return x.join(', ') || '—';
+    return x ?? '—';
+  };
   for (const e of epics) {
     const list = stories.filter((x) => x.s.epic.folder === e.folder);
     out.push(`## ${e.id} — ${e.title}`, '');
@@ -68,7 +80,7 @@ export function renderBacklog(pm, t) {
     );
     for (const x of list)
       out.push(
-        `| ${link(x)} | ${x.v.title} | ${x.v.status} | ${x.v.priority ?? '—'} | ${extra.map((f) => x.v.extra[f.key] ?? '—').join(' | ')}${extra.length ? ' | ' : ''}${issue(x)} |`,
+        `| ${link(x)} | ${x.v.title} | ${x.v.status} | ${x.v.priority ?? '—'} | ${extra.map((f) => cell(x.v, f)).join(' | ')}${extra.length ? ' | ' : ''}${issue(x)} |`,
       );
     out.push('');
   }

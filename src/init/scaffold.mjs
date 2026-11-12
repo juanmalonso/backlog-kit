@@ -253,6 +253,32 @@ export function mergeClaude(current, block) {
   return `${current.trimEnd()}\n\n${block}`;
 }
 
+/**
+ * Plan de `upgrade`: solo los archivos del kit (scripts y hooks) según el .pm/config.json que ya
+ * tiene el proyecto. No crea archivos iniciales ni fusiona nada: para proyectos ya configurados,
+ * incluidos los que adoptaron backlog-kit con su config escrita a mano.
+ */
+export function planUpgrade(root, kitDir) {
+  const file = path.join(root, '.pm', 'config.json');
+  if (!existsSync(file)) throw new Error('No hay .pm/config.json: corré init primero / run init first.');
+  const raw = JSON.parse(readFileSync(file, 'utf8'));
+  const cfg = resolveConfig(raw);
+  const plan = planInit(
+    root,
+    {
+      language: cfg.language,
+      storyPrefix: cfg.storyPrefix,
+      mainBranch: cfg.mainBranch,
+      github: cfg.github?.enabled !== false,
+      gitGuard: cfg.gitGuard?.enabled !== false,
+      skills: false,
+      ci: false,
+    },
+    kitDir,
+  );
+  return { config: { ...raw, github: { enabled: cfg.github?.enabled !== false }, gitGuard: { enabled: cfg.gitGuard?.enabled !== false } }, actions: plan.actions.filter((a) => a.kind === 'kit'), conflicts: [] };
+}
+
 /** Escribe las acciones y deja el proyecto andando: hooks de git y backlog generado. */
 export function applyInit(root, plan, { log = (_line) => {}, force = false } = {}) {
   if (plan.conflicts?.length && !force)

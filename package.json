@@ -2,7 +2,7 @@
   "name": "backlog-kit",
   "displayName": "Backlog Kit",
   "description": "Backlog de historias en markdown dentro del repo: tablero kanban, init con scripts, skills de Claude Code, GitHub Issues y protección de main.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "juanmalonso",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/juanmalonso/backlog-kit" },
@@ -16,7 +16,8 @@
     "commands": [
       { "command": "backlogKit.openBoard", "title": "Abrir tablero / Open board", "category": "Backlog Kit", "icon": "$(project)" },
       { "command": "backlogKit.init", "title": "Inicializar proyecto / Initialize project", "category": "Backlog Kit" },
-      { "command": "backlogKit.refresh", "title": "Actualizar tablero / Refresh board", "category": "Backlog Kit" }
+      { "command": "backlogKit.refresh", "title": "Actualizar tablero / Refresh board", "category": "Backlog Kit" },
+      { "command": "backlogKit.upgrade", "title": "Actualizar scripts / Upgrade scripts", "category": "Backlog Kit" }
     ]
   },
   "scripts": {

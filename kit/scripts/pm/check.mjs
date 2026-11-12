@@ -23,7 +23,9 @@ function checkMigrations() {
   const re = new RegExp(cfg.migrations.pattern ?? '^(\\d{4})_[a-z0-9_]+\\.sql$');
   const width = cfg.migrations.digits ?? 4;
   const seen = new Map();
-  for (const f of readdirSync(dir).filter((x) => !x.startsWith('.'))) {
+  // Solo los archivos de migración (por defecto .sql): un README en la carpeta no es una migración.
+  const ext = cfg.migrations.ext ?? '.sql';
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(ext))) {
     const m = f.match(re);
     if (!m) {
       errors.push(t.migrationName(f));
