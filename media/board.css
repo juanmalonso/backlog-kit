@@ -134,3 +134,83 @@ button.small { padding: 1px 6px; font-size: 0.9em; margin-left: auto; }
 @media (prefers-reduced-motion: no-preference) {
   .card { transition: background-color 120ms ease; }
 }
+
+/* v0.3: vistas, carriles, insignias y panel de detalle. */
+.tabs { display: inline-flex; border: 1px solid var(--vscode-input-border, var(--vscode-panel-border, transparent)); border-radius: 4px; overflow: hidden; }
+.tab { border-radius: 0; color: var(--vscode-foreground); background: transparent; }
+.tab.on { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+.layout { display: flex; align-items: flex-start; }
+.board-wrap, .deps-wrap { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
+.lane { margin: 6px 0 4px; }
+.lane-title {
+  margin: 8px 14px 0;
+  font-size: 0.9em;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--vscode-foreground);
+}
+.lane-title .n, .lane .column .n { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 10px; padding: 0 7px; font-size: 0.85em; }
+.lane-grid { padding-top: 6px; }
+.card.selected { outline: 2px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.reason { font-size: 0.85em; color: var(--vscode-errorForeground); margin: 0; }
+.pr { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; color: var(--vscode-textLink-foreground); }
+.pr .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vscode-descriptionForeground); display: inline-block; }
+.pr.ci-pass .dot { background: var(--vscode-testing-iconPassed, #3fb950); }
+.pr.ci-fail .dot { background: var(--vscode-testing-iconFailed, #f85149); }
+.pr.ci-pending .dot { background: var(--vscode-editorWarning-foreground, #d29922); }
+.warn { color: var(--vscode-editorWarning-foreground); }
+.unlocks { color: var(--vscode-descriptionForeground); }
+
+.detail {
+  position: sticky;
+  top: 52px;
+  flex: 0 0 380px;
+  max-width: 45vw;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  margin: 12px 14px 12px 0;
+  padding: 12px 14px;
+  background: var(--vscode-sideBar-background, var(--vscode-editorWidget-background));
+  border: 1px solid var(--vscode-panel-border, transparent);
+  border-radius: var(--radius);
+}
+.detail[hidden] { display: none; }
+.detail-head { display: flex; justify-content: space-between; align-items: center; }
+.detail h2 { margin: 4px 0 8px; font-size: 1.1em; }
+.detail h3 { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--vscode-descriptionForeground); margin: 14px 0 6px; }
+.detail .actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.detail dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0; font-size: 0.9em; }
+.detail dt { color: var(--vscode-descriptionForeground); }
+.detail dd { margin: 0; }
+.detail a { color: var(--vscode-textLink-foreground); }
+.prose { white-space: pre-wrap; margin: 0; line-height: 1.4; }
+.criteria-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.criteria-list li { display: flex; gap: 6px; align-items: flex-start; line-height: 1.35; }
+.criteria-list li.nested { margin-left: 18px; }
+.criteria-list input { margin-top: 3px; }
+.log { padding-left: 16px; margin: 0; font-size: 0.9em; display: flex; flex-direction: column; gap: 3px; color: var(--vscode-descriptionForeground); }
+.chip.state { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+
+.hint { margin: 10px 14px 0; color: var(--vscode-descriptionForeground); font-size: 0.9em; }
+.graph { display: block; margin: 8px 14px 24px; }
+.graph .edge { fill: none; stroke: var(--vscode-descriptionForeground); stroke-width: 1.2; opacity: 0.7; }
+.graph .edge.pending { stroke: var(--vscode-editorWarning-foreground); stroke-dasharray: 4 3; opacity: 1; }
+.graph .arrowhead { fill: var(--vscode-descriptionForeground); }
+.graph .node { cursor: pointer; }
+.graph .node rect { fill: var(--vscode-editor-background); stroke: var(--vscode-panel-border, var(--vscode-descriptionForeground)); }
+.graph .node.selected rect, .graph .node:focus-visible rect { stroke: var(--vscode-focusBorder); }
+.graph .node.role-done rect { opacity: 0.6; }
+.graph .node.role-inProgress rect { stroke: var(--vscode-textLink-foreground); }
+.graph .node.role-review rect { stroke: var(--vscode-charts-purple, #a371f7); }
+.graph .node.role-blocked rect { stroke: var(--vscode-errorForeground); }
+.graph .node.role-ready rect { stroke: var(--vscode-testing-iconPassed, #3fb950); }
+.graph text { fill: var(--vscode-foreground); font-family: var(--vscode-font-family); font-size: 12px; }
+.graph .nid { font-weight: 600; font-family: var(--vscode-editor-font-family); }
+.graph .nstate { fill: var(--vscode-descriptionForeground); font-size: 10px; }
+.graph .node:focus { outline: none; }
+
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .detail { position: static; max-width: none; width: calc(100% - 28px); margin: 0 14px 14px; flex: none; max-height: none; }
+}
