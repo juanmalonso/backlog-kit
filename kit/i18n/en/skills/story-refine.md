@@ -11,6 +11,8 @@ description: Refine a story until {{S.ready}}: acceptance criteria, plan, tasks,
 - The decisions (`{{docs.decisions}}/`) and the stories it depends on.
 - The existing code the story extends.
 
+To save time, launch the `refiner` subagent: it proposes criteria, plan, cases and the questions.
+
 ## 2. Resolve the questions with the user
 
 Present them together, each with **concrete options and an example**, your recommendation first.

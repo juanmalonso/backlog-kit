@@ -70,6 +70,23 @@ export function section(body, title) {
   return m ? m[1].trim() : '';
 }
 
+/** Tilda o destilda el criterio número `index` (desde 0) de una sección. Devuelve el texto nuevo. */
+export function toggleChecklist(file, title, index, checked) {
+  const text = readFileSync(file, 'utf8');
+  const re = new RegExp(`(## ${escape(title)}\\n)([\\s\\S]*?)(?=\\n## |$)`);
+  const m = text.match(re);
+  if (!m) throw new Error(`${file}: no tiene la sección / has no section "## ${title}"`);
+  let n = -1;
+  const body = m[2].replace(/^(\s*- \[)([ xX])(\])/gm, (whole, a, _mark, b) => {
+    n += 1;
+    return n === index ? `${a}${checked ? 'x' : ' '}${b}` : whole;
+  });
+  if (index > n) throw new Error(`${file}: no hay criterio ${index + 1} / no criterion ${index + 1}`);
+  const next = text.replace(re, `${m[1]}${body}`);
+  writeFileSync(file, next);
+  return next;
+}
+
 /** Criterios `- [ ]` / `- [x]` de una sección. */
 export function checklist(body, title) {
   const lines = section(body, title).split('\n');

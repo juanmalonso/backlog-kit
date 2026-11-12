@@ -1,0 +1,19 @@
+{
+  "name": "backlog-kit",
+  "description": "Backlog de historias en markdown dentro del repo / Markdown story backlog in your repo",
+  "owner": {
+    "name": "Juan Manuel Alonso"
+  },
+  "plugins": [
+    {
+      "name": "backlog-kit",
+      "source": "./plugins/backlog-kit",
+      "description": "Backlog de historias en .pm/: skills /hu-*, subagentes revisor-criterios y refinador, contexto automático de la historia, recordatorio de log y MCP del backlog."
+    },
+    {
+      "name": "backlog-kit-en",
+      "source": "./plugins/backlog-kit-en",
+      "description": "Story backlog in .pm/: /story-* skills, criteria-reviewer and refiner subagents, automatic story context, log reminder and backlog MCP."
+    }
+  ]
+}

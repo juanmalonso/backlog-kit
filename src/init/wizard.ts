@@ -3,7 +3,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { applyInit, planInit } from './scaffold.mjs';
+import { applyInit, planInit, planUpgrade } from './scaffold.mjs';
+import { findRoot } from '../project';
 
 type Lang = 'es' | 'en';
 
@@ -20,6 +21,10 @@ const T = {
     github: ['GitHub Issues', 'Un issue por historia con labels y milestone por épica (usa el CLI gh)'],
     gitGuard: ['Protección de la rama principal', 'git-guard para Claude Code y hook pre-push'],
     ci: ['Workflow de CI', '.github/workflows/backlog.yml corre el guard en cada PR'],
+    claudeAction: ['Claude en GitHub', '.github/workflows/claude.yml: "@claude" en issues y PRs (necesita el secreto ANTHROPIC_API_KEY)'],
+    claudeMode: '¿Cómo llega Claude Code al proyecto?',
+    modeProject: ['Copiado al proyecto', 'Skills, subagentes, hooks y MCP en .claude/ y .mcp.json, versionados con el repo'],
+    modePlugin: ['Plugin de Claude Code', 'Los trae el plugin backlog-kit (/plugin install backlog-kit@backlog-kit); el proyecto queda más limpio'],
     fieldNames: { phase: 'Fase (MVP / V1 / DESPUES)', stage: 'Etapa (0–4)', requirements: 'Requisitos (lista)', spec: 'Códigos de spec (lista)' },
     confirm: (c: number, u: number, m: number, s: number) => `Crear ${c}, actualizar ${u}, fusionar ${m}, dejar ${s} como están`,
     apply: 'Aplicar',
@@ -41,6 +46,10 @@ const T = {
     github: ['GitHub Issues', 'One issue per story with labels and a milestone per epic (uses the gh CLI)'],
     gitGuard: ['Main branch protection', 'git-guard for Claude Code and a pre-push hook'],
     ci: ['CI workflow', '.github/workflows/backlog.yml runs the guard on every PR'],
+    claudeAction: ['Claude on GitHub', '.github/workflows/claude.yml: "@claude" on issues and PRs (needs the ANTHROPIC_API_KEY secret)'],
+    claudeMode: 'How does Claude Code reach the project?',
+    modeProject: ['Copied into the project', 'Skills, subagents, hooks and MCP in .claude/ and .mcp.json, versioned with the repo'],
+    modePlugin: ['Claude Code plugin', 'Provided by the backlog-kit-en plugin (/plugin install backlog-kit-en@backlog-kit); keeps the project lean'],
     fieldNames: { phase: 'Phase (MVP / V1 / LATER)', stage: 'Stage (0–4)', requirements: 'Requirements (list)', spec: 'Spec codes (list)' },
     confirm: (c: number, u: number, m: number, s: number) => `Create ${c}, update ${u}, merge ${m}, leave ${s} untouched`,
     apply: 'Apply',
@@ -96,7 +105,7 @@ export async function runWizard(context: vscode.ExtensionContext): Promise<strin
   if (!epicTitle) return;
 
   const comps = await vscode.window.showQuickPick(
-    (['skills', 'github', 'gitGuard', 'ci'] as const).map((k) => ({ label: t[k][0], detail: t[k][1], key: k, picked: true })),
+    (['skills', 'github', 'gitGuard', 'ci', 'claudeAction'] as const).map((k) => ({ label: t[k][0], detail: t[k][1], key: k, picked: k !== 'claudeAction' })),
     { title: t.title, placeHolder: t.components, canPickMany: true, ignoreFocusOut: true },
   );
   if (!comps) return;
@@ -106,7 +115,19 @@ export async function runWizard(context: vscode.ExtensionContext): Promise<strin
   );
   if (!fields) return;
 
-  const on = new Set(comps.map((c) => c.key));
+  const on = new Set<string>(comps.map((c) => c.key));
+  let claude: 'project' | 'plugin' = 'project';
+  if (on.has('skills')) {
+    const mode = await vscode.window.showQuickPick(
+      [
+        { label: t.modeProject[0], detail: t.modeProject[1], value: 'project' as const },
+        { label: t.modePlugin[0], detail: t.modePlugin[1], value: 'plugin' as const },
+      ],
+      { title: t.title, placeHolder: t.claudeMode, ignoreFocusOut: true },
+    );
+    if (!mode) return;
+    claude = mode.value;
+  }
   const kitDir = vscode.Uri.joinPath(context.extensionUri, 'kit').fsPath;
   const plan = planInit(
     root,
@@ -121,6 +142,8 @@ export async function runWizard(context: vscode.ExtensionContext): Promise<strin
       github: on.has('github'),
       gitGuard: on.has('gitGuard'),
       ci: on.has('ci'),
+      claude,
+      claudeAction: on.has('claudeAction'),
     },
     kitDir,
   );
@@ -161,4 +184,32 @@ export async function runWizard(context: vscode.ExtensionContext): Promise<strin
     }
   });
   return root;
+}
+
+/** Actualiza scripts y hooks del kit según el .pm/config.json del proyecto. */
+export async function runUpgrade(context: vscode.ExtensionContext) {
+  const root = findRoot();
+  if (!root) {
+    vscode.window.showErrorMessage('Este proyecto no tiene .pm/config.json / This project has no .pm/config.json');
+    return;
+  }
+  const plan = planUpgrade(root, vscode.Uri.joinPath(context.extensionUri, 'kit').fsPath);
+  const changes = plan.actions.filter((a: any) => a.op !== 'skip');
+  if (!changes.length) {
+    vscode.window.showInformationMessage('Backlog Kit: los scripts ya están al día / scripts are up to date.');
+    return;
+  }
+  const apply = 'Actualizar / Update';
+  const choice = await vscode.window.showInformationMessage(
+    `Backlog Kit: ${changes.length} archivo(s) / file(s)`,
+    { modal: true, detail: changes.map((a: any) => `${a.op} ${a.path}`).join('\n') },
+    apply,
+  );
+  if (choice !== apply) return;
+  try {
+    applyInit(root, plan);
+    vscode.window.showInformationMessage('Backlog Kit: scripts actualizados / scripts updated.');
+  } catch (err) {
+    vscode.window.showErrorMessage((err as Error).message);
+  }
 }

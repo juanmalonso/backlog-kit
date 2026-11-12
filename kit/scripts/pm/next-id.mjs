@@ -19,16 +19,25 @@ const migration = args.includes('--migracion') || args.includes('--migration');
 const width = cfg.migrations?.digits ?? 4;
 const git = (...a) => execFileSync('git', a, { cwd: pm.root, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
 const found = new Map();
-const note = (n, where) => found.has(n) || found.set(n, where);
+const note = (n, where) => {
+  if (!found.has(n)) found.set(n, where);
+};
 const storyRe = new RegExp(`(?:^|/)${cfg.storyPrefix}-(\\d+)-`);
 const migRe = new RegExp(`^(\\d{${width}})_`);
 
 if (migration) {
   if (!cfg.migrations?.dir) throw new Error('migrations.dir no está en .pm/config.json');
   const dir = path.join(pm.root, cfg.migrations.dir);
-  if (existsSync(dir)) for (const f of readdirSync(dir)) f.match(migRe) && note(Number(f.match(migRe)[1]), 'working tree');
+  if (existsSync(dir))
+    for (const f of readdirSync(dir)) {
+      const m = f.match(migRe);
+      if (m) note(Number(m[1]), 'working tree');
+    }
 } else {
-  for (const s of pm.loadStories()) s.folder.match(storyRe) && note(Number(s.folder.match(storyRe)[1]), 'working tree');
+  for (const s of pm.loadStories()) {
+    const m = s.folder.match(storyRe);
+    if (m) note(Number(m[1]), 'working tree');
+  }
 }
 
 let refs = [];

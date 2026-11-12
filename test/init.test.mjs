@@ -209,3 +209,65 @@ describe('proyecto con scripts propios', () => {
     expect(again.actions.find((a) => a.path === 'scripts/pm/check.mjs').op).toBe('update');
   });
 });
+
+describe('upgrade', async () => {
+  const { planUpgrade } = await import('../src/init/scaffold.mjs');
+  it('sin config falla', () => {
+    let error;
+    try {
+      planUpgrade(project(), KIT);
+    } catch (err) {
+      error = err;
+    }
+    expect(error.message).toMatch(/No hay \.pm\/config\.json/);
+  });
+  it('con config a mano: escribe solo scripts y hooks, y respeta los componentes', () => {
+    const cfg = {
+      language: 'es',
+      fields: [
+        { key: 'etapa', label: 'Etapa', range: [0, 4] },
+        { key: 'rf', label: 'RF', list: true },
+        { key: 'spec', label: 'Spec', list: true, backlog: false },
+      ],
+      github: { enabled: false },
+      docs: { decisions: 'wiki/decisiones', findings: 'wiki/hallazgos', findingPrefix: 'HAL' },
+    };
+    const dir = project({ '.pm/config.json': JSON.stringify(cfg), '.pm/E01-base/README.md': '---\nid: E01\nnombre: Base\n---\n', 'scripts/pm/check.mjs': '// viejo\n' });
+    const plan = planUpgrade(dir, KIT);
+    expect(plan.actions.every((a) => a.path.startsWith('scripts/') || a.path.startsWith('.githooks/') || a.path === 'package.json')).toBe(true);
+    expect(plan.actions.find((a) => a.path === 'scripts/pm/check.mjs').op).toBe('update');
+    expect(plan.actions.some((a) => a.path.endsWith('sync-issue.mjs'))).toBe(false);
+    applyInit(dir, plan);
+    expect(existsSync(path.join(dir, 'docs'))).toBe(false);
+    expect(existsSync(path.join(dir, '.pm/templates/story.md'))).toBe(false);
+    expect(existsSync(path.join(dir, 'CLAUDE.md'))).toBe(false);
+    expect(JSON.parse(read(dir, 'package.json')).scripts['pm:next']).toBe('node scripts/pm/next.mjs');
+    expect(JSON.parse(read(dir, '.pm/config.json'))).toEqual(cfg);
+    mkdirSync(path.join(dir, '.pm/E01-base/HU-001-algo'), { recursive: true });
+    writeFileSync(
+      path.join(dir, '.pm/E01-base/HU-001-algo/README.md'),
+      '---\nid: HU-001\nepica: E01\nnombre: Algo\nestado: LISTO\nprioridad: alta\netapa: 2\nrf: [RF-01, RF-02]\nspec: [A1]\n---\n\n## Log de progreso\n\n- x\n',
+    );
+    node(dir, 'scripts/pm/backlog.mjs', '--quiet');
+    const backlog = read(dir, '.pm/backlog.md');
+    expect(backlog).toMatch(/\| Id \| Etapa \| Prioridad \| Nombre \| Estimación \|\n\|---\|---\|---\|---\|---\|\n\| \[HU-001\]\(E01-base\/HU-001-algo\/README\.md\) \| 2 \| alta \| Algo \| — \|/);
+    expect(backlog).toMatch(/\| Id \| Nombre \| Estado \| Prioridad \| Etapa \| RF \| Issue \|/);
+    expect(backlog).toMatch(/\| LISTO \| alta \| 2 \| RF-01, RF-02 \| — \|/);
+    expect(backlog).not.toMatch(/Spec/);
+    expect(node(dir, 'scripts/pm/check.mjs').status).toBe(0);
+  });
+});
+
+describe('migraciones', () => {
+  it('el guard revisa la numeración y no cuenta archivos que no son migraciones', () => {
+    const dir = project({ 'db/migrations/0001_a.sql': '', 'db/migrations/0003_c.sql': '', 'db/migrations/README.md': '# notas' });
+    applyInit(dir, planInit(dir, { language: 'es' }, KIT));
+    const cfg = JSON.parse(read(dir, '.pm/config.json'));
+    writeFileSync(path.join(dir, '.pm/config.json'), JSON.stringify({ ...cfg, migrations: { dir: 'db/migrations' } }));
+    const r = node(dir, 'scripts/pm/check.mjs', '--solo-migraciones');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/hueco en la numeración, se esperaba 0002 y está 0003/);
+    expect(r.stderr).not.toMatch(/README/);
+    expect(node(dir, 'scripts/pm/next-id.mjs', '--migracion').stdout.trim()).toBe('0004');
+  });
+});

@@ -24,13 +24,19 @@ export const DEFAULTS = {
   gitGuard: true,
   ci: true,
   epicTitle: undefined,
+  // 'project': skills, subagentes, hooks y MCP se copian al proyecto. 'plugin': los trae el plugin
+  // de Claude Code (backlog-kit@backlog-kit) y en el proyecto solo queda la statusline.
+  claude: 'project',
+  mcp: true,
+  claudeAction: false,
 };
 
-const SKILLS = {
-  es: ['hu-nueva', 'hu-refinar', 'hu-avanzar', 'hu-log', 'hu-backlog', 'hu-adoptar-issue', 'doc-adr', 'doc-hallazgo'],
-  en: ['story-new', 'story-refine', 'story-advance', 'story-log', 'story-backlog', 'story-adopt-issue', 'doc-adr', 'doc-finding'],
+export const SKILLS = {
+  es: ['hu-nueva', 'hu-refinar', 'hu-avanzar', 'hu-log', 'hu-backlog', 'hu-adoptar-issue', 'hu-ola', 'doc-adr', 'doc-hallazgo'],
+  en: ['story-new', 'story-refine', 'story-advance', 'story-log', 'story-backlog', 'story-adopt-issue', 'story-wave', 'doc-adr', 'doc-finding'],
 };
-const GITHUB_ONLY_SKILLS = ['hu-adoptar-issue', 'story-adopt-issue'];
+export const AGENTS = { es: ['revisor-criterios', 'refinador'], en: ['criteria-reviewer', 'refiner'] };
+export const GITHUB_ONLY_SKILLS = ['hu-adoptar-issue', 'story-adopt-issue'];
 
 const SCRIPTS = {
   'pm:check': 'node scripts/pm/check.mjs',
@@ -38,11 +44,16 @@ const SCRIPTS = {
   'pm:next-id': 'node scripts/pm/next-id.mjs',
   'pm:advance': 'node scripts/pm/advance.mjs',
   'pm:log': 'node scripts/pm/log.mjs',
+  'pm:start': 'node scripts/pm/start.mjs',
+  'pm:next': 'node scripts/pm/next.mjs',
+  'pm:stats': 'node scripts/pm/stats.mjs',
+  'pm:new': 'node scripts/pm/new.mjs',
 };
 const GITHUB_SCRIPTS = {
   'pm:sync': 'node scripts/pm/sync-issue.mjs',
   'pm:issue': 'node scripts/pm/issue.mjs',
   'pm:setup-github': 'node scripts/pm/setup-github.mjs',
+  'pm:pr': 'node scripts/pm/pr.mjs',
 };
 
 /** Config que se escribe en .pm/config.json: solo lo que difiere del preset, más lo elegido. */
@@ -58,6 +69,7 @@ export function buildConfig(opts) {
     fields: o.fields.filter((f) => catalog[f]).map((f) => catalog[f]),
     github: { enabled: Boolean(o.github) },
     gitGuard: { enabled: Boolean(o.gitGuard) },
+    claude: { mode: o.claude === 'plugin' ? 'plugin' : 'project' },
   };
 }
 
@@ -101,6 +113,10 @@ export function templateContext(cfgRaw, opts = {}) {
       : '',
     github: cfg.github.enabled,
     gitGuard: cfg.gitGuard.enabled,
+    plugin: opts.claude === 'plugin',
+    project: opts.claude !== 'plugin',
+    mcp: opts.mcp !== false,
+    skillPrefix: opts.claude === 'plugin' ? `backlog-kit${cfg.language === 'en' ? '-en' : ''}:` : '',
     epicId,
     epicTitle: opts.epicTitle || (en ? 'Foundations' : 'Fundaciones'),
   };
@@ -127,11 +143,14 @@ export function planInit(root, opts, kitDir) {
   // Scripts y hooks: siempre (kit).
   for (const file of walk(path.join(kitDir, 'scripts'))) {
     const rel = path.relative(kitDir, file).split(path.sep).join('/');
-    if (!o.github && /scripts\/pm\/(sync-issue|issue|setup-github)\.mjs$/.test(rel)) continue;
+    if (!o.github && /scripts\/pm\/(sync-issue|issue|setup-github|pr)\.mjs$/.test(rel)) continue;
     if (!o.gitGuard && /scripts\/(hooks\/(git-guard|pre-push)|lib\/git-rules)\.mjs$/.test(rel)) continue;
     add(rel, readFileSync(file, 'utf8'), 'kit');
   }
-  if (o.gitGuard) add('.githooks/pre-push', readFileSync(path.join(kitDir, 'githooks/pre-push'), 'utf8'), 'kit', true);
+  if (o.gitGuard) {
+    add('.githooks/pre-push', readFileSync(path.join(kitDir, 'githooks/pre-push'), 'utf8'), 'kit', true);
+    add('.githooks/prepare-commit-msg', readFileSync(path.join(kitDir, 'githooks/prepare-commit-msg'), 'utf8'), 'kit', true);
+  }
 
   // Estructura de .pm/ (seed).
   add('.pm/config.json', `${JSON.stringify(cfgRaw, null, 2)}\n`, 'seed');
@@ -146,14 +165,19 @@ export function planInit(root, opts, kitDir) {
   add(`${ctx.docs.findings}/${docName}`, tpl('finding-template.md'), 'seed');
 
   if (o.skills) {
-    for (const name of SKILLS[lang]) {
-      if (!o.github && GITHUB_ONLY_SKILLS.includes(name)) continue;
-      add(`.claude/skills/${name}/SKILL.md`, tpl(`skills/${name}.md`), 'seed');
+    if (o.claude !== 'plugin') {
+      for (const name of SKILLS[lang]) {
+        if (!o.github && GITHUB_ONLY_SKILLS.includes(name)) continue;
+        add(`.claude/skills/${name}/SKILL.md`, tpl(`skills/${name}.md`), 'seed');
+      }
+      for (const name of AGENTS[lang]) add(`.claude/agents/${name}.md`, tpl(`agents/${name}.md`), 'seed');
+      if (o.mcp) add('.mcp.json', null, 'merge-mcp');
     }
     add('CLAUDE.md', `${CLAUDE_BEGIN}\n${tpl('claude.md').trim()}\n${CLAUDE_END}\n`, 'merge-claude');
     add('.claude/settings.json', null, 'merge-settings');
   }
   if (o.ci) add('.github/workflows/backlog.yml', render(readFileSync(path.join(kitDir, 'github/backlog.yml'), 'utf8'), ctx), 'seed');
+  if (o.claudeAction) add('.github/workflows/claude.yml', render(readFileSync(path.join(kitDir, 'github/claude.yml'), 'utf8'), ctx), 'seed');
   add('package.json', null, 'merge-package');
 
   // Un proyecto que backlog-kit no inicializó puede tener sus propios scripts con el mismo nombre:
@@ -183,6 +207,10 @@ function resolveAction(root, a, o, managed) {
   }
   if (a.kind === 'merge-settings') {
     const { text, changed } = mergeSettings(current, o);
+    return { ...a, content: text, op: !exists ? 'create' : changed ? 'merge' : 'skip' };
+  }
+  if (a.kind === 'merge-mcp') {
+    const { text, changed } = mergeMcp(current);
     return { ...a, content: text, op: !exists ? 'create' : changed ? 'merge' : 'skip' };
   }
   if (a.kind === 'merge-claude') {
@@ -229,6 +257,9 @@ export function mergeSettings(current, o) {
     'Bash(npm run pm:next-id:*)',
     'Bash(node scripts/pm/check.mjs:*)',
     'Bash(node scripts/pm/backlog.mjs:*)',
+    'Bash(npm run pm:next:*)',
+    'Bash(npm run pm:stats:*)',
+    ...(o.claude !== 'plugin' && o.mcp ? ['mcp__backlog__story_list', 'mcp__backlog__story_get', 'mcp__backlog__story_next', 'mcp__backlog__backlog_stats'] : []),
     ...(o.github ? ['Bash(npm run pm:issue:*)', 'Bash(gh issue view:*)', 'Bash(gh issue list:*)', 'Bash(gh pr view:*)', 'Bash(gh pr checks:*)'] : []),
   ];
   for (const a of allow) if (!s.permissions.allow.includes(a)) s.permissions.allow.push(a);
@@ -236,13 +267,30 @@ export function mergeSettings(current, o) {
   const addHook = (event, matcher, command, statusMessage) => {
     s.hooks[event] ??= [];
     const present = s.hooks[event].some((h) => h.hooks?.some((x) => x.command === command));
-    if (!present) s.hooks[event].push({ matcher, hooks: [{ type: 'command', command, timeout: 20, statusMessage }] });
+    if (!present)
+      s.hooks[event].push({ ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command, timeout: 20, ...(statusMessage ? { statusMessage } : {}) }] });
   };
   const en = o.language === 'en';
-  addHook('PostToolUse', 'Write|Edit|MultiEdit', 'node "$CLAUDE_PROJECT_DIR/scripts/hooks/pm-guard.mjs"', en ? 'Checking .pm/' : 'Verificando .pm/');
-  if (o.gitGuard)
-    addHook('PreToolUse', 'Bash', 'node "$CLAUDE_PROJECT_DIR/scripts/hooks/git-guard.mjs"', en ? 'Checking the main branch is untouched' : 'Verificando que no se toque la rama principal');
+  // Con el plugin, guard y contexto los registra el plugin: acá quedaría duplicado.
+  if (o.claude !== 'plugin') {
+    addHook('PostToolUse', 'Write|Edit|MultiEdit', 'node "$CLAUDE_PROJECT_DIR/scripts/hooks/pm-guard.mjs"', en ? 'Checking .pm/' : 'Verificando .pm/');
+    if (o.gitGuard)
+      addHook('PreToolUse', 'Bash', 'node "$CLAUDE_PROJECT_DIR/scripts/hooks/git-guard.mjs"', en ? 'Checking the main branch is untouched' : 'Verificando que no se toque la rama principal');
+    addHook('SessionStart', 'startup|resume|clear|compact', 'node "$CLAUDE_PROJECT_DIR/scripts/claude/session-context.mjs"', en ? 'Loading the current story' : 'Cargando la historia de la rama');
+    addHook('UserPromptSubmit', undefined, 'node "$CLAUDE_PROJECT_DIR/scripts/claude/prompt-context.mjs"');
+    addHook('Stop', undefined, 'node "$CLAUDE_PROJECT_DIR/scripts/claude/stop-check.mjs"');
+  }
+  // La línea de estado es de settings (un plugin no la puede poner); no pisa una que ya exista.
+  s.statusLine ??= { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/scripts/claude/statusline.mjs"' };
   return { text: `${JSON.stringify(s, null, 2)}\n`, changed: JSON.stringify(s) !== before };
+}
+
+export function mergeMcp(current) {
+  const m = current ? JSON.parse(current) : {};
+  const before = JSON.stringify(m);
+  m.mcpServers ??= {};
+  m.mcpServers.backlog ??= { command: 'node', args: ['${CLAUDE_PROJECT_DIR:-.}/scripts/mcp/server.mjs'] };
+  return { text: `${JSON.stringify(m, null, 2)}\n`, changed: JSON.stringify(m) !== before };
 }
 
 export function mergeClaude(current, block) {
@@ -251,6 +299,33 @@ export function mergeClaude(current, block) {
   const end = current.indexOf(CLAUDE_END);
   if (start >= 0 && end > start) return `${current.slice(0, start)}${block.trimEnd()}${current.slice(end + CLAUDE_END.length)}`;
   return `${current.trimEnd()}\n\n${block}`;
+}
+
+/**
+ * Plan de `upgrade`: los archivos del kit (scripts y hooks) según el .pm/config.json que ya tiene
+ * el proyecto, más los comandos pm:* nuevos en package.json (sin pisar los que existen). No crea
+ * archivos iniciales: para proyectos ya configurados, incluidos los que adoptaron backlog-kit con
+ * su config escrita a mano.
+ */
+export function planUpgrade(root, kitDir) {
+  const file = path.join(root, '.pm', 'config.json');
+  if (!existsSync(file)) throw new Error('No hay .pm/config.json: corré init primero / run init first.');
+  const raw = JSON.parse(readFileSync(file, 'utf8'));
+  const cfg = resolveConfig(raw);
+  const plan = planInit(
+    root,
+    {
+      language: cfg.language,
+      storyPrefix: cfg.storyPrefix,
+      mainBranch: cfg.mainBranch,
+      github: cfg.github?.enabled !== false,
+      gitGuard: cfg.gitGuard?.enabled !== false,
+      skills: false,
+      ci: false,
+    },
+    kitDir,
+  );
+  return { config: { ...raw, github: { enabled: cfg.github?.enabled !== false }, gitGuard: { enabled: cfg.gitGuard?.enabled !== false } }, actions: plan.actions.filter((a) => a.kind === 'kit' || a.kind === 'merge-package'), conflicts: [] };
 }
 
 /** Escribe las acciones y deja el proyecto andando: hooks de git y backlog generado. */

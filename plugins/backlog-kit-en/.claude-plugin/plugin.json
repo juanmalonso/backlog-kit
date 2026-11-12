@@ -1,0 +1,18 @@
+{
+  "name": "backlog-kit-en",
+  "displayName": "Backlog Kit",
+  "version": "0.3.0",
+  "description": "Story backlog in .pm/: /story-* skills, criteria-reviewer and refiner subagents, automatic story context, log reminder and backlog MCP.",
+  "author": {
+    "name": "Juan Manuel Alonso"
+  },
+  "homepage": "https://github.com/juanmalonso/backlog-kit",
+  "repository": "https://github.com/juanmalonso/backlog-kit",
+  "license": "MIT",
+  "keywords": [
+    "backlog",
+    "user stories",
+    "kanban",
+    "workflow"
+  ]
+}
