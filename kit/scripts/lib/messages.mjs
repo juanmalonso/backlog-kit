@@ -117,6 +117,11 @@ const es = {
   prNotReview: (id, st, review) => `${id} está ${st}: el PR se abre en ${review} (o usá --forzar)`,
   prExists: (url) => `✓ ya hay PR: ${url}`,
   prCreated: (url) => `✓ PR abierto: ${url}`,
+  newUsage: 'Uso: npm run pm:new -- --epic <ENN> --title "nombre" [--type …] [--priority …] [--status …] [--sin-github]',
+  newNoEpic: (e, list) => `No existe la épica ${e} (hay: ${list})`,
+  newStatus: (a, b) => `Una historia nueva arranca en ${a} o ${b}`,
+  newNoTemplate: 'No hay plantilla en .pm/templates/',
+  newCreated: (id, file) => `✓ ${id} creada en ${file}`,
 };
 
 const en = {
@@ -233,6 +238,11 @@ const en = {
   prNotReview: (id, st, review) => `${id} is ${st}: the PR opens in ${review} (or use --force)`,
   prExists: (url) => `✓ PR already exists: ${url}`,
   prCreated: (url) => `✓ PR opened: ${url}`,
+  newUsage: 'Usage: npm run pm:new -- --epic <ENN> --title "title" [--type …] [--priority …] [--status …] [--no-github]',
+  newNoEpic: (e, list) => `Epic ${e} does not exist (available: ${list})`,
+  newStatus: (a, b) => `A new story starts in ${a} or ${b}`,
+  newNoTemplate: 'No template in .pm/templates/',
+  newCreated: (id, file) => `✓ ${id} created at ${file}`,
 };
 
 export function messages(lang) {

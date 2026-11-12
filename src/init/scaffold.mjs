@@ -41,6 +41,7 @@ const SCRIPTS = {
   'pm:start': 'node scripts/pm/start.mjs',
   'pm:next': 'node scripts/pm/next.mjs',
   'pm:stats': 'node scripts/pm/stats.mjs',
+  'pm:new': 'node scripts/pm/new.mjs',
 };
 const GITHUB_SCRIPTS = {
   'pm:sync': 'node scripts/pm/sync-issue.mjs',

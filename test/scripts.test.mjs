@@ -140,3 +140,20 @@ describe('pm:pr', () => {
     expect(body).toMatch(/Closes #42$/);
   });
 });
+
+describe('pm:new', () => {
+  it('crea la historia desde la plantilla con el próximo id y pasa el guard', () => {
+    const dir = setup({ 'HU-001': { status: 'LISTO' } });
+    const r = node(dir, 'scripts/pm/new.mjs', '--epic', 'E00', '--title', 'Login con Google', '--priority', 'alta');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/HU-002 creada en \.pm\/E00-base\/HU-002-login-con-google\/README\.md/);
+    const text = readFileSync(path.join(dir, '.pm/E00-base/HU-002-login-con-google/README.md'), 'utf8');
+    expect(text).toMatch(/^id: HU-002$/m);
+    expect(text).toMatch(/^nombre: Login con Google$/m);
+    expect(text).toMatch(/^prioridad: alta/m);
+    expect(text).toMatch(/^# HU-002 — Login con Google$/m);
+    expect(text).not.toMatch(/HU-NNN|YYYY-MM-DD/);
+    expect(node(dir, 'scripts/pm/check.mjs').status).toBe(0);
+    expect(node(dir, 'scripts/pm/new.mjs', '--epic', 'E09', '--title', 'x').stderr).toMatch(/No existe la épica E09/);
+  });
+});

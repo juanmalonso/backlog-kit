@@ -4,7 +4,8 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { boardData, configOf, run } from '../project';
+import { boardData, configOf, run, storyDetail, toggleCriterion } from '../project';
+import { createStory } from './create';
 
 const TEXT = {
   es: {
@@ -16,6 +17,9 @@ const TEXT = {
     branch: 'Crear rama',
     pick: (id: string) => `Mover ${id} a…`,
     noTargets: (id: string, from: string) => `${id} no tiene transiciones válidas desde ${from}.`,
+    logPrompt: (id: string) => `Qué avanzó en ${id} (artefactos y qué falta)`,
+    working: (what: string) => `${what}…`,
+    openPr: 'Abrir PR',
   },
   en: {
     title: 'Board',
@@ -26,6 +30,9 @@ const TEXT = {
     branch: 'Create branch',
     pick: (id: string) => `Move ${id} to…`,
     noTargets: (id: string, from: string) => `${id} has no valid transitions from ${from}.`,
+    logPrompt: (id: string) => `What moved forward in ${id} (artifacts and what is left)`,
+    working: (what: string) => `${what}…`,
+    openPr: 'Open PR',
   },
 };
 
@@ -84,16 +91,74 @@ export class BoardPanel {
     this.timer = setTimeout(() => void this.refresh(), 250);
   }
 
-  async refresh() {
+  async refresh(refreshPrs = false) {
     try {
-      await this.panel.webview.postMessage({ type: 'data', data: await boardData(this.root) });
+      await this.panel.webview.postMessage({ type: 'data', data: await boardData(this.root, { refreshPrs }) });
     } catch (err) {
       await this.panel.webview.postMessage({ type: 'error', message: (err as Error).message });
     }
   }
 
+  private async script(name: string, args: string[], label: string) {
+    const result = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: this.t.working(label) }, () =>
+      run(this.root, 'node', [path.join('scripts', 'pm', `${name}.mjs`), ...args]),
+    );
+    await this.refresh(true);
+    if (!result.ok) {
+      vscode.window.showErrorMessage(result.out.replace(/^✗\s*/, ''));
+      return null;
+    }
+    return result.out;
+  }
+
   private async onMessage(m: any) {
-    if (m.type === 'ready' || m.type === 'refresh') return this.refresh();
+    if (m.type === 'ready') return this.refresh();
+    if (m.type === 'refresh') return this.refresh(true);
+    if (m.type === 'detail') {
+      try {
+        return this.panel.webview.postMessage({ type: 'detail', detail: storyDetail(this.root, m.id) });
+      } catch (err) {
+        return vscode.window.showErrorMessage((err as Error).message);
+      }
+    }
+    if (m.type === 'toggle') {
+      try {
+        toggleCriterion(this.root, m.id, m.index, m.checked);
+      } catch (err) {
+        vscode.window.showErrorMessage((err as Error).message);
+      }
+      await this.panel.webview.postMessage({ type: 'detail', detail: storyDetail(this.root, m.id) });
+      return this.refresh();
+    }
+    if (m.type === 'log') {
+      const text = await vscode.window.showInputBox({ prompt: this.t.logPrompt(m.id), ignoreFocusOut: true });
+      if (!text) return;
+      const out = await this.script('log', [m.id, text], `pm:log ${m.id}`);
+      if (out) vscode.window.setStatusBarMessage(out.split('\n')[0], 4000);
+      return this.panel.webview.postMessage({ type: 'detail', detail: storyDetail(this.root, m.id) });
+    }
+    if (m.type === 'start') {
+      const out = await this.script('start', [m.id], `pm:start ${m.id}`);
+      if (out) vscode.window.showInformationMessage(out.split('\n').filter(Boolean).pop() ?? out);
+      return;
+    }
+    if (m.type === 'pr') {
+      const out = await this.script('pr', [m.id], `pm:pr ${m.id}`);
+      const url = out?.match(/https:\/\/\S+/)?.[0];
+      if (url) {
+        const choice = await vscode.window.showInformationMessage(out!.split('\n').pop()!, this.t.openPr);
+        if (choice) vscode.env.openExternal(vscode.Uri.parse(url));
+      }
+      return;
+    }
+    if (m.type === 'new') {
+      const id = await createStory(this.root);
+      if (id) {
+        await this.refresh();
+        return this.panel.webview.postMessage({ type: 'select', id });
+      }
+      return;
+    }
     if (m.type === 'open') {
       const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(m.path));
       return vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
@@ -166,7 +231,10 @@ export class BoardPanel {
 </head>
 <body>
 <header class="toolbar" id="toolbar"></header>
-<main id="board" class="board" aria-live="polite"></main>
+<div class="layout">
+<main id="board" class="board-wrap" aria-live="polite"></main>
+<aside id="detail" class="detail" hidden aria-label="Detalle"></aside>
+</div>
 <script nonce="${nonce}" src="${js}"></script>
 </body>
 </html>`;
