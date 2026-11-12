@@ -18,17 +18,14 @@ El tablero de VS Code hace lo mismo al arrastrar una tarjeta.
 | A | Verificá antes |
 |---|---|
 | {{S.inProgress}} | Está en {{S.ready}} y sus dependencias resueltas. Después: `git fetch && git switch -c <rama que imprime> origin/{{mainBranch}}`. Leé el README entero antes de tocar código |
-| {{S.review}} | `{{checkCommand}}` limpio. Tildá en el README **solo** los criterios que verificaste. El script rechaza criterios sin tildar; `--forzar` solo con una `--nota` que explique por qué |
+| {{S.review}} | `{{checkCommand}}` limpio y el subagente `revisor-criterios` sin faltantes. Tildá en el README **solo** los criterios que verificaste. El script rechaza criterios sin tildar; `--forzar` solo con una `--nota` que explique por qué |
 | {{S.done}} | **Solo si el usuario lo aceptó explícitamente.** Nunca por iniciativa propia |
 | {{S.blocked}} | `--nota "<qué falta> (depende de: <quién/qué>)"` es obligatoria |
 {{#github}}
 ## Al pasar a {{S.review}}, abrir el PR
 
 ```bash
-git push -u origin <rama>
-gh pr create --base {{mainBranch}} --title "[{{storyPrefix}}-NNN] <nombre>" --body "<resumen, cómo se verificó>
-
-Closes #<issue>"
+npm run pm:pr        # push + PR con historia, criterios, último log y Closes #<issue>
 ```
 
 El número del issue sale de `npm run pm:issue -- {{storyPrefix}}-NNN`, nunca del id.

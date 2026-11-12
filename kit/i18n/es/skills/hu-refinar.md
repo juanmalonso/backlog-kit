@@ -11,6 +11,8 @@ description: Refinar una historia hasta {{S.ready}}: criterios de aceptación, p
 - Las decisiones (`{{docs.decisions}}/`) y las historias de las que depende.
 - El código existente que la historia extiende.
 
+Para ganar tiempo, lanzá el subagente `refinador`: propone criterios, plan, casos y las preguntas.
+
 ## 2. Resolver las preguntas con el usuario
 
 Presentalas todas juntas, cada una con **opciones concretas y un ejemplo**, y tu recomendación primero.

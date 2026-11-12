@@ -2,6 +2,7 @@
 // corren los scripts del proyecto, así las reglas son las mismas que en la terminal y en los skills.
 import path from 'node:path';
 import * as vscode from 'vscode';
+import { claudeAvailable, workWithClaude } from './claude';
 import { configOf, run } from './project';
 
 const TEXT = {
@@ -68,6 +69,19 @@ export async function moveStory(root: string, id: string, from: string, to: stri
   const role = cfg.roleOf(to);
   const en = cfg.language === 'en';
   const args = [path.join('scripts', 'pm', 'advance.mjs'), id, to, ...extra];
+  // Antes de review, ofrecer que Claude revise los criterios contra el diff (se puede apagar en el config).
+  if (role === 'review' && !extra.length && cfg.claude?.reviewBeforeMove !== false && (await claudeAvailable(root))) {
+    const review = en ? 'Review with Claude first' : 'Revisar con Claude primero';
+    const anyway = en ? 'Move anyway' : 'Mover igual';
+    const choice = await vscode.window.showInformationMessage(
+      en ? `Check ${id}'s criteria against the diff before moving it to ${to}?` : `¿Revisar los criterios de ${id} contra el diff antes de pasarla a ${to}?`,
+      { modal: true },
+      review,
+      anyway,
+    );
+    if (!choice) return changed.fire();
+    if (choice === review) return workWithClaude(root, id, to);
+  }
   if (role === 'blocked' && !extra.length) {
     const note = await vscode.window.showInputBox({ prompt: t.note(to), ignoreFocusOut: true });
     if (!note) return changed.fire();

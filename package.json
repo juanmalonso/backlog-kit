@@ -2,7 +2,7 @@
   "name": "backlog-kit",
   "displayName": "Backlog Kit",
   "description": "Backlog de historias en markdown dentro del repo: tablero kanban, init con scripts, skills de Claude Code, GitHub Issues y protección de main.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "juanmalonso",
   "license": "MIT",
   "repository": {
@@ -94,6 +94,12 @@
         "title": "Abrir README / Open README",
         "category": "Backlog Kit",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "backlogKit.story.claude",
+        "title": "Trabajar con Claude / Work with Claude",
+        "category": "Backlog Kit",
+        "icon": "$(sparkle)"
       }
     ],
     "views": {
@@ -153,6 +159,16 @@
           "command": "backlogKit.story.readme",
           "when": "view == backlogKit.stories && viewItem == story",
           "group": "2_open@1"
+        },
+        {
+          "command": "backlogKit.story.claude",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "inline@2"
+        },
+        {
+          "command": "backlogKit.story.claude",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "1_flow@0"
         }
       ],
       "commandPalette": [
@@ -179,6 +195,10 @@
         {
           "command": "backlogKit.story.readme",
           "when": "false"
+        },
+        {
+          "command": "backlogKit.story.claude",
+          "when": "false"
         }
       ]
     }
@@ -188,7 +208,7 @@
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.mjs",
-    "check": "npm run typecheck && npm test",
+    "check": "npm run typecheck && node scripts/build-plugin.mjs --check && npm test",
     "package": "npm run build && vsce package --no-dependencies",
     "vscode:prepublish": "npm run build"
   },

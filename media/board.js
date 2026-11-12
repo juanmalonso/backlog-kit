@@ -27,6 +27,7 @@
       waits: (ids) => `Espera ${ids}`, unlocks: (n) => `Destraba ${n}`, blocked: 'Bloqueada',
       ci: { pass: 'CI en verde', fail: 'CI en rojo', pending: 'CI corriendo', none: 'Sin checks' }, draft: 'borrador',
       close: 'Cerrar', story: 'Historia', log: 'Log', dependsOn: 'Depende de', dependents: 'La esperan',
+      claude: 'Trabajar con Claude', claudeAgo: (n) => `Claude activo · hace ${n} min`,
       actions: { move: 'Mover…', log: 'Loguear…', start: 'Empezar (rama)', pr: 'Abrir PR', open: 'Abrir README', issue: 'Issue', prLink: 'PR' },
       questions: 'Preguntas pendientes', none: '—', depsEmpty: 'Ninguna historia tiene dependencias todavía.',
       depsHint: 'Más grande = destraba más historias. Clic para ver el detalle.',
@@ -40,6 +41,7 @@
       waits: (ids) => `Waits for ${ids}`, unlocks: (n) => `Unblocks ${n}`, blocked: 'Blocked',
       ci: { pass: 'CI green', fail: 'CI red', pending: 'CI running', none: 'No checks' }, draft: 'draft',
       close: 'Close', story: 'Story', log: 'Log', dependsOn: 'Depends on', dependents: 'Waiting on it',
+      claude: 'Work with Claude', claudeAgo: (n) => `Claude active · ${n} min ago`,
       actions: { move: 'Move…', log: 'Log…', start: 'Start (branch)', pr: 'Open PR', open: 'Open README', issue: 'Issue', prLink: 'PR' },
       questions: 'Open questions', none: '—', depsEmpty: 'No story has dependencies yet.',
       depsHint: 'Bigger = unblocks more stories. Click for details.',
@@ -144,6 +146,7 @@
         ),
       );
     const role = roleOf(s.status);
+    if (s.claudeAgo != null) out.push(el('span', { class: 'claude-live', title: T.claudeAgo(s.claudeAgo) }, `✳ ${T.claudeAgo(s.claudeAgo)}`));
     if (s.pendingDeps.length && !['done', 'discarded'].includes(role)) out.push(el('span', { class: 'warn', title: T.waits(s.pendingDeps.join(', ')) }, `⧗ ${T.waits(s.pendingDeps.join(', '))}`));
     if (s.unlocks && ['ready', 'refining', 'backlog', 'inProgress'].includes(role)) out.push(el('span', { class: 'unlocks' }, `↗ ${T.unlocks(s.unlocks)}`));
     return out;
@@ -362,6 +365,7 @@
         'div',
         { class: 'actions' },
         el('button', { onclick: () => post({ type: 'pick', id: s.id, from: s.status }) }, T.actions.move),
+        !['done', 'discarded'].includes(role) && el('button', { class: 'ghost claude', onclick: () => post({ type: 'claude', id: s.id, status: s.status }) }, `✳ ${T.claude}`),
         el('button', { class: 'ghost', onclick: () => post({ type: 'log', id: s.id }) }, T.actions.log),
         ['ready', 'inProgress'].includes(role) && el('button', { class: 'ghost', onclick: () => post({ type: 'start', id: s.id }) }, T.actions.start),
         data.github && role === 'review' && !s.pr && el('button', { class: 'ghost', onclick: () => post({ type: 'pr', id: s.id }) }, T.actions.pr),
