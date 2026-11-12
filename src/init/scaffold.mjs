@@ -38,11 +38,15 @@ const SCRIPTS = {
   'pm:next-id': 'node scripts/pm/next-id.mjs',
   'pm:advance': 'node scripts/pm/advance.mjs',
   'pm:log': 'node scripts/pm/log.mjs',
+  'pm:start': 'node scripts/pm/start.mjs',
+  'pm:next': 'node scripts/pm/next.mjs',
+  'pm:stats': 'node scripts/pm/stats.mjs',
 };
 const GITHUB_SCRIPTS = {
   'pm:sync': 'node scripts/pm/sync-issue.mjs',
   'pm:issue': 'node scripts/pm/issue.mjs',
   'pm:setup-github': 'node scripts/pm/setup-github.mjs',
+  'pm:pr': 'node scripts/pm/pr.mjs',
 };
 
 /** Config que se escribe en .pm/config.json: solo lo que difiere del preset, más lo elegido. */
@@ -127,11 +131,14 @@ export function planInit(root, opts, kitDir) {
   // Scripts y hooks: siempre (kit).
   for (const file of walk(path.join(kitDir, 'scripts'))) {
     const rel = path.relative(kitDir, file).split(path.sep).join('/');
-    if (!o.github && /scripts\/pm\/(sync-issue|issue|setup-github)\.mjs$/.test(rel)) continue;
+    if (!o.github && /scripts\/pm\/(sync-issue|issue|setup-github|pr)\.mjs$/.test(rel)) continue;
     if (!o.gitGuard && /scripts\/(hooks\/(git-guard|pre-push)|lib\/git-rules)\.mjs$/.test(rel)) continue;
     add(rel, readFileSync(file, 'utf8'), 'kit');
   }
-  if (o.gitGuard) add('.githooks/pre-push', readFileSync(path.join(kitDir, 'githooks/pre-push'), 'utf8'), 'kit', true);
+  if (o.gitGuard) {
+    add('.githooks/pre-push', readFileSync(path.join(kitDir, 'githooks/pre-push'), 'utf8'), 'kit', true);
+    add('.githooks/prepare-commit-msg', readFileSync(path.join(kitDir, 'githooks/prepare-commit-msg'), 'utf8'), 'kit', true);
+  }
 
   // Estructura de .pm/ (seed).
   add('.pm/config.json', `${JSON.stringify(cfgRaw, null, 2)}\n`, 'seed');
