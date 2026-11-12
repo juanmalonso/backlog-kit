@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Rechaza push directo, forzado o borrado de la rama principal también para pushes a mano.
+# Emergencia, a conciencia: ALLOW_MAIN_PUSH=1 git push …
+[ "$ALLOW_MAIN_PUSH" = "1" ] && exit 0
+exec node "$(git rev-parse --show-toplevel)/scripts/hooks/pre-push.mjs"
