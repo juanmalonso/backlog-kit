@@ -1,0 +1,17 @@
+# Guard del backlog (backlog-kit): ids, estados, dependencias y .pm/backlog.md al día.
+name: backlog
+
+on:
+  pull_request:
+  push:
+    branches: [{{mainBranch}}]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/pm/check.mjs
