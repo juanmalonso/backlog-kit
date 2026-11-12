@@ -5,20 +5,183 @@
   "version": "0.2.0",
   "publisher": "juanmalonso",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/juanmalonso/backlog-kit" },
-  "engines": { "vscode": "^1.90.0", "node": ">=20" },
-  "categories": ["Other"],
-  "keywords": ["backlog", "kanban", "user stories", "claude code", "markdown"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/juanmalonso/backlog-kit"
+  },
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "backlog",
+    "kanban",
+    "user stories",
+    "claude code",
+    "markdown"
+  ],
   "main": "./dist/extension.js",
-  "bin": { "backlog-kit": "./bin/backlog-kit.mjs" },
-  "activationEvents": ["workspaceContains:.pm/config.json"],
+  "bin": {
+    "backlog-kit": "./bin/backlog-kit.mjs"
+  },
+  "activationEvents": [
+    "workspaceContains:.pm/config.json"
+  ],
   "contributes": {
     "commands": [
-      { "command": "backlogKit.openBoard", "title": "Abrir tablero / Open board", "category": "Backlog Kit", "icon": "$(project)" },
-      { "command": "backlogKit.init", "title": "Inicializar proyecto / Initialize project", "category": "Backlog Kit" },
-      { "command": "backlogKit.refresh", "title": "Actualizar tablero / Refresh board", "category": "Backlog Kit" },
-      { "command": "backlogKit.upgrade", "title": "Actualizar scripts / Upgrade scripts", "category": "Backlog Kit" }
-    ]
+      {
+        "command": "backlogKit.openBoard",
+        "title": "Abrir tablero / Open board",
+        "category": "Backlog Kit",
+        "icon": "$(project)"
+      },
+      {
+        "command": "backlogKit.init",
+        "title": "Inicializar proyecto / Initialize project",
+        "category": "Backlog Kit"
+      },
+      {
+        "command": "backlogKit.upgrade",
+        "title": "Actualizar scripts / Upgrade scripts",
+        "category": "Backlog Kit"
+      },
+      {
+        "command": "backlogKit.refresh",
+        "title": "Actualizar tablero / Refresh board",
+        "category": "Backlog Kit",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "backlogKit.newStory",
+        "title": "Nueva historia / New story",
+        "category": "Backlog Kit",
+        "icon": "$(add)"
+      },
+      {
+        "command": "backlogKit.openStory",
+        "title": "Ver en el tablero / Show on board",
+        "category": "Backlog Kit"
+      },
+      {
+        "command": "backlogKit.story.move",
+        "title": "Mover… / Move…",
+        "category": "Backlog Kit",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "backlogKit.story.start",
+        "title": "Empezar (rama) / Start (branch)",
+        "category": "Backlog Kit",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "backlogKit.story.log",
+        "title": "Loguear… / Log…",
+        "category": "Backlog Kit",
+        "icon": "$(note)"
+      },
+      {
+        "command": "backlogKit.story.pr",
+        "title": "Abrir PR / Open PR",
+        "category": "Backlog Kit",
+        "icon": "$(git-pull-request)"
+      },
+      {
+        "command": "backlogKit.story.readme",
+        "title": "Abrir README / Open README",
+        "category": "Backlog Kit",
+        "icon": "$(go-to-file)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "backlogKit.stories",
+          "name": "Backlog",
+          "when": "backlogKit.active"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "backlogKit.newStory",
+          "when": "view == backlogKit.stories",
+          "group": "navigation@1"
+        },
+        {
+          "command": "backlogKit.openBoard",
+          "when": "view == backlogKit.stories",
+          "group": "navigation@2"
+        },
+        {
+          "command": "backlogKit.refresh",
+          "when": "view == backlogKit.stories",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "backlogKit.story.move",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "inline@1"
+        },
+        {
+          "command": "backlogKit.story.move",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "1_flow@1"
+        },
+        {
+          "command": "backlogKit.story.start",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "1_flow@2"
+        },
+        {
+          "command": "backlogKit.story.log",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "1_flow@3"
+        },
+        {
+          "command": "backlogKit.story.pr",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "1_flow@4"
+        },
+        {
+          "command": "backlogKit.story.readme",
+          "when": "view == backlogKit.stories && viewItem == story",
+          "group": "2_open@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "backlogKit.openStory",
+          "when": "false"
+        },
+        {
+          "command": "backlogKit.story.move",
+          "when": "false"
+        },
+        {
+          "command": "backlogKit.story.start",
+          "when": "false"
+        },
+        {
+          "command": "backlogKit.story.log",
+          "when": "false"
+        },
+        {
+          "command": "backlogKit.story.pr",
+          "when": "false"
+        },
+        {
+          "command": "backlogKit.story.readme",
+          "when": "false"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "node esbuild.mjs",
