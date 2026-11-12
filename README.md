@@ -55,7 +55,16 @@ Sin VS Code, el mismo init por terminal:
 npx github:juanmalonso/backlog-kit init --lang es --fields phase,stage
 ```
 
-Opciones: `--lang es|en`, `--prefix HU`, `--main main`, `--check "npm test"`,
+En un proyecto que ya tiene `.pm/config.json` (por ejemplo, uno que adoptó backlog-kit con su
+config escrita a mano), `upgrade` actualiza solo scripts y hooks, sin tocar nada más:
+
+```bash
+npx github:juanmalonso/backlog-kit upgrade
+```
+
+También desde VS Code: **Backlog Kit: Actualizar scripts**.
+
+Opciones de `init`: `--lang es|en`, `--prefix HU`, `--main main`, `--check "npm test"`,
 `--fields phase,stage,requirements,spec`, `--epic "Nombre"`, `--no-skills`, `--no-github`,
 `--no-git-guard`, `--no-ci`, `--dry-run`.
 
@@ -112,8 +121,9 @@ Las banderas aceptan las dos formas: `--nota`/`--note`, `--forzar`/`--force`,
 
 También se pueden pisar `states` (el nombre de cada uno de los 8 roles), `keys` (las claves del
 frontmatter), `priorities`, `types`, `estimates`, `sections` (títulos de las secciones del README),
-`docs` y `migrations` (`{ "dir": "db/migrations", "pattern": "^(\\d{4})_[a-z0-9_]+\\.sql$" }` para que
-el guard revise la numeración). Los presets están en
+`docs` y `migrations` (`{ "dir": "db/migrations", "ext": ".sql", "pattern": "^(\\d{4})_[a-z0-9_]+\\.sql$" }`
+para que el guard revise la numeración). Un campo con `"backlog": false` no aparece en `.pm/backlog.md`.
+Los presets están en
 [`kit/scripts/lib/config.mjs`](kit/scripts/lib/config.mjs).
 
 Estados (roles fijos, nombres configurables):

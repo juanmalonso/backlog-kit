@@ -3,7 +3,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { applyInit, planInit } from './scaffold.mjs';
+import { applyInit, planInit, planUpgrade } from './scaffold.mjs';
+import { findRoot } from '../project';
 
 type Lang = 'es' | 'en';
 
@@ -161,4 +162,32 @@ export async function runWizard(context: vscode.ExtensionContext): Promise<strin
     }
   });
   return root;
+}
+
+/** Actualiza scripts y hooks del kit según el .pm/config.json del proyecto. */
+export async function runUpgrade(context: vscode.ExtensionContext) {
+  const root = findRoot();
+  if (!root) {
+    vscode.window.showErrorMessage('Este proyecto no tiene .pm/config.json / This project has no .pm/config.json');
+    return;
+  }
+  const plan = planUpgrade(root, vscode.Uri.joinPath(context.extensionUri, 'kit').fsPath);
+  const changes = plan.actions.filter((a: any) => a.op !== 'skip');
+  if (!changes.length) {
+    vscode.window.showInformationMessage('Backlog Kit: los scripts ya están al día / scripts are up to date.');
+    return;
+  }
+  const apply = 'Actualizar / Update';
+  const choice = await vscode.window.showInformationMessage(
+    `Backlog Kit: ${changes.length} archivo(s) / file(s)`,
+    { modal: true, detail: changes.map((a: any) => `${a.op} ${a.path}`).join('\n') },
+    apply,
+  );
+  if (choice !== apply) return;
+  try {
+    applyInit(root, plan);
+    vscode.window.showInformationMessage('Backlog Kit: scripts actualizados / scripts updated.');
+  } catch (err) {
+    vscode.window.showErrorMessage((err as Error).message);
+  }
 }

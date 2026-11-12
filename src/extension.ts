@@ -1,7 +1,7 @@
 // Backlog Kit para VS Code: tablero kanban sobre .pm/ e init del proyecto.
 import * as vscode from 'vscode';
 import { BoardPanel } from './board/panel';
-import { runWizard } from './init/wizard';
+import { runUpgrade, runWizard } from './init/wizard';
 import { configOf, currentBranch, findRoot, storyByBranch } from './project';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -48,6 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (await runWizard(context)) void updateStatus();
     }),
     vscode.commands.registerCommand('backlogKit.refresh', () => BoardPanel.current?.refresh()),
+    vscode.commands.registerCommand('backlogKit.upgrade', () => runUpgrade(context)),
   );
 
   const watcher = vscode.workspace.createFileSystemWatcher('**/{.pm/**,.git/HEAD}');
