@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Antepone el id de la historia de la rama al mensaje de commit (backlog-kit).
+exec node "$(git rev-parse --show-toplevel)/scripts/hooks/commit-msg-prefix.mjs" "$@"
