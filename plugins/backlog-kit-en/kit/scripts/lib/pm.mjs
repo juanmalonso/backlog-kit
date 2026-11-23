@@ -12,16 +12,19 @@ export function parseFrontmatter(text) {
   if (!m) return { data: null, body: text };
   const data = {};
   for (const raw of m[1].split('\n')) {
-    const line = raw.replace(/\s+#.*$/, '');
-    if (!line.trim()) continue;
-    const kv = line.match(/^([a-z_]+):\s*(.*)$/);
+    if (!raw.replace(/\s+#.*$/, '').trim()) continue;
+    const kv = raw.match(/^([a-z_]+):[ \t]*(.*)$/);
     if (!kv) throw new Error(`Línea de frontmatter no soportada / unsupported frontmatter line: "${raw}"`);
-    data[kv[1]] = parseValue(kv[2].trim());
+    data[kv[1]] = parseValue(kv[2]);
   }
   return { data, body: text.replace(/\r\n/g, '\n').slice(m[0].length) };
 }
 
-function parseValue(v) {
+// Un valor entre comillas puede tener " #" adentro; sin comillas, " #" empieza un comentario.
+function parseValue(raw) {
+  const quoted = raw.match(/^(["'])(.*?)\1(?:\s+#.*)?\s*$/);
+  if (quoted) return quoted[2];
+  const v = raw.replace(/(^|\s+)#.*$/, '').trim();
   if (v === '') return null;
   if (v.startsWith('[') && v.endsWith(']')) {
     const inner = v.slice(1, -1).trim();
@@ -31,11 +34,18 @@ function parseValue(v) {
   return v.replace(/^["']|["']$/g, '');
 }
 
+/** Entre comillas si sin ellas el parser lo leería distinto (" #", comillas o corchete al inicio). */
+function renderScalar(value) {
+  const v = value ?? '';
+  if (typeof v !== 'string' || !(/\s#/.test(v) || /^["'#[]/.test(v))) return v;
+  return v.includes('"') ? `'${v}'` : `"${v}"`;
+}
+
 /** Cambia o agrega campos del frontmatter sin tocar el resto del archivo ni sus comentarios. */
 export function setFields(file, fields) {
   let text = readFileSync(file, 'utf8');
   for (const [key, value] of Object.entries(fields)) {
-    const rendered = Array.isArray(value) ? `[${value.join(', ')}]` : (value ?? '');
+    const rendered = Array.isArray(value) ? `[${value.join(', ')}]` : renderScalar(value);
     // Separa "clave: valor" del comentario "# ..." y conserva la columna del comentario.
     const re = new RegExp(`^(${key}:[^#\\n]*?)([ \\t]*#.*)?$`, 'm');
     const fm = text.match(/^---\n[\s\S]*?\n---/)[0];
@@ -46,8 +56,9 @@ export function setFields(file, fields) {
           const col = whole.length - comment.trimStart().length;
           return `${head.padEnd(col - 1)} ${comment.trimStart()}`;
         })
-      : fm.replace(/\n---$/, `\n${key}: ${rendered}\n---`);
-    text = text.replace(fm, next);
+      : fm.replace(/\n---$/, () => `\n${key}: ${rendered}\n---`);
+    // Reemplazos con función: un valor con "$&" o "$1" no se interpreta como patrón.
+    text = text.replace(fm, () => next);
   }
   writeFileSync(file, text);
 }
@@ -82,7 +93,7 @@ export function toggleChecklist(file, title, index, checked) {
     return n === index ? `${a}${checked ? 'x' : ' '}${b}` : whole;
   });
   if (index > n) throw new Error(`${file}: no hay criterio ${index + 1} / no criterion ${index + 1}`);
-  const next = text.replace(re, `${m[1]}${body}`);
+  const next = text.replace(re, () => `${m[1]}${body}`);
   writeFileSync(file, next);
   return next;
 }

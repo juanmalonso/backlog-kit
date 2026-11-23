@@ -32,8 +32,9 @@ try {
   }
   if (!dirty.length && !committed.length) process.exit(0);
   const loggedToday = section(hit.s.body, cfg.sections.log).split('\n').some((l) => l.startsWith(`- ${today()} `));
+  // Bordes con \p{L}: \b no ve el borde después de una letra acentuada ("terminé.").
   // Si Claude dice que terminó y quedan criterios sin tildar, el recordatorio aplica aunque haya log.
-  const claimsDone = /\b(listo|terminad[oa]|termin[eé]|complet[oa]d?[oa]?|done|finished|completed)\b/i.test(String(input.last_assistant_message ?? ''));
+  const claimsDone = /(?<![\p{L}\d_])(listo|terminad[oa]|termin[eé]|complet[oa]d?[oa]?|done|finished|completed)(?![\p{L}\d_])/iu.test(String(input.last_assistant_message ?? ''));
   const pendingCriteria = hit.v.criteria.total > hit.v.criteria.done;
   if (loggedToday && !(claimsDone && pendingCriteria)) process.exit(0);
   writeFileSync(marker, '1');

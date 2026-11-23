@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { expect } from './expect.mjs';
-import { toggleChecklist, checklist } from '../kit/scripts/lib/pm.mjs';
+import { toggleChecklist, checklist, parseFrontmatter, setFields } from '../kit/scripts/lib/pm.mjs';
 import { blockedReason, dependencyIndex } from '../kit/scripts/lib/insights.mjs';
 import { resolveConfig } from '../kit/scripts/lib/config.mjs';
 
@@ -27,6 +27,34 @@ describe('toggleChecklist', () => {
       error = err;
     }
     expect(error.message).toMatch(/no hay criterio 4/);
+  });
+});
+
+describe('reemplazos y comentarios', () => {
+  const tmp = (content) => {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), 'bk-')), 'r.md');
+    writeFileSync(file, content);
+    return file;
+  };
+
+  it('toggleChecklist no interpreta "$1" ni "$&" del texto de un criterio', () => {
+    const file = tmp('## Criterios\n\n- [ ] cuesta US$1.000 y $& otro\n- [ ] dos\n');
+    toggleChecklist(file, 'Criterios', 1, true);
+    expect(readFileSync(file, 'utf8')).toBe('## Criterios\n\n- [ ] cuesta US$1.000 y $& otro\n- [x] dos\n');
+  });
+
+  it('setFields con "$&" y " #" en el valor: se escribe tal cual y se vuelve a leer igual', () => {
+    const file = tmp('---\nid: HU-001\nestado: BACKLOG   # BACKLOG | LISTO\n---\n\ncuerpo\n');
+    setFields(file, { nombre: 'Arreglar bug #12 por $& US$1', estado: 'LISTO' });
+    const { data, body } = parseFrontmatter(readFileSync(file, 'utf8'));
+    expect(data.nombre).toBe('Arreglar bug #12 por $& US$1');
+    expect(data.estado).toBe('LISTO');
+    expect(body).toBe('\ncuerpo\n');
+  });
+
+  it('parseFrontmatter: comentario sin comillas, " #" con comillas, vacío con comentario', () => {
+    const { data } = parseFrontmatter('---\na: valor   # nota\nb: "con #12 adentro"  # nota\nc:      # vacío\nd: [x, y]\ne: 3\n---\n');
+    expect(data).toEqual({ a: 'valor', b: 'con #12 adentro', c: null, d: ['x', 'y'], e: 3 });
   });
 });
 
