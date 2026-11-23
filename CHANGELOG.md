@@ -12,6 +12,11 @@
 - `upgrade` fusiona los hooks de Claude en `.claude/settings.json` y actualiza el bloque de `CLAUDE.md`
   si ya está.
 - Los hooks de Claude no fallan en una rama que todavía no tiene los scripts del kit.
+- `mirrors`: `pm:advance` actualiza la celda de estado en índices escritos a mano (un `backlog.md` propio) y
+  `pm:check` avisa lo desalineado.
+- El guard distingue advertencias de errores: `dependencies.cycles: "warn"` deja pasar los ciclos que ya
+  existían, y el hook de Claude sólo corta por errores.
+- El `prepare` que pone `core.hooksPath` ya no rompe `npm ci` sin `.git` (un `docker build`, un CI) ni en Windows.
 
 ## 0.5.0
 

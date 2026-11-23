@@ -70,7 +70,8 @@ describe('init en español', () => {
     expect(pkg.scripts.test).toBe('vitest');
     expect(pkg.scripts['pm:advance']).toBe('node scripts/pm/advance.mjs');
     expect(pkg.scripts['pm:avanzar']).toBe('node scripts/pm/advance.mjs');
-    expect(pkg.scripts.prepare).toBe('git config core.hooksPath .githooks');
+    expect(pkg.scripts.prepare).toMatch(/git config core\.hooksPath \.githooks/);
+    expect(pkg.scripts.prepare).toMatch(/^node -e /);
     const claude = read(dir, 'CLAUDE.md');
     expect(claude).toMatch(/^# Demo\n\nNotas del proyecto\./);
     expect(claude).toMatch(/\/hu-nueva/);
@@ -318,5 +319,17 @@ describe('migraciones', () => {
     expect(r.stderr).toMatch(/hueco en la numeración, se esperaba 0002 y está 0003/);
     expect(r.stderr).not.toMatch(/README/);
     expect(node(dir, 'scripts/pm/next-id.mjs', '--migracion').stdout.trim()).toBe('0004');
+  });
+});
+
+describe('prepare', () => {
+  it('no rompe npm ci sin .git, y reemplaza la forma vieja', async () => {
+    const { PREPARE_HOOKS } = await import('../src/init/scaffold.mjs');
+    const dir = mkdtempSync(path.join(tmpdir(), 'backlog-kit-sin-git-'));
+    const r = spawnSync('sh', ['-c', PREPARE_HOOKS], { cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(dir) } });
+    expect(r.status).toBe(0);
+    const viejo = project({ 'package.json': JSON.stringify({ name: 'x', scripts: { prepare: 'husky && git config core.hooksPath .githooks' } }) });
+    const pkg = JSON.parse(planInit(viejo, { language: 'es', github: false }, KIT).actions.find((a) => a.path === 'package.json').content);
+    expect(pkg.scripts.prepare).toBe(`husky && ${PREPARE_HOOKS}`);
   });
 });

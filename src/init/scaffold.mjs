@@ -302,10 +302,12 @@ export function mergePackage(current, o, name) {
   if (o.language !== 'en') wanted['pm:avanzar'] = 'node scripts/pm/advance.mjs';
   for (const [k, v] of Object.entries(wanted)) pkg.scripts[k] ??= v;
   if (o.gitGuard) {
-    const hook = 'git config core.hooksPath .githooks';
     const prev = pkg.scripts.prepare;
-    if (!prev) pkg.scripts.prepare = hook;
-    else if (!prev.includes('core.hooksPath')) pkg.scripts.prepare = `${prev} && ${hook}`;
+    if (!prev) pkg.scripts.prepare = PREPARE_HOOKS;
+    else if (prev.includes(PREPARE_HOOKS)) {
+      // ya está
+    } else if (prev.includes(OLD_PREPARE_HOOKS)) pkg.scripts.prepare = prev.replace(OLD_PREPARE_HOOKS, PREPARE_HOOKS);
+    else if (!prev.includes('core.hooksPath')) pkg.scripts.prepare = `${prev} && ${PREPARE_HOOKS}`;
   }
   return { text: `${JSON.stringify(pkg, null, 2)}\n`, changed: JSON.stringify(pkg) !== before };
 }
@@ -322,6 +324,11 @@ export function hookCommand(script) {
 export function storyTemplateName(cfgRaw) {
   return cfgRaw?.templates?.story ?? 'story.md';
 }
+
+// `prepare` corre en cada `npm ci`, también en un `docker build` o un CI sin `.git` (o sin git): ahí
+// `git config` falla y rompe la instalación. Con node, para que ande igual en Windows (cmd no tiene `true`).
+const OLD_PREPARE_HOOKS = 'git config core.hooksPath .githooks';
+export const PREPARE_HOOKS = `node -e "try{require('child_process').execSync('git config core.hooksPath .githooks',{stdio:'ignore'})}catch(e){}"`;
 
 export function mergeSettings(current, o) {
   const s = current ? JSON.parse(current) : { $schema: 'https://json.schemastore.org/claude-code-settings.json' };

@@ -7,8 +7,9 @@
 //
 // Reglas: valida la transición; en curso fija la rama <id>-slug; review exige criterios tildados
 // (salvo --forzar); bloqueada exige --nota. Lo usan los skills y el tablero de VS Code.
-import { readFileSync, writeFileSync } from 'node:fs';
-import { appendToSection, checklist, parseFrontmatter, setFields, today } from '../lib/pm.mjs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { appendToSection, checklist, parseFrontmatter, setFields, setMirrorState, today } from '../lib/pm.mjs';
 import { githubOff, project } from '../lib/project.mjs';
 import { backlogFile, renderBacklog } from './backlog.mjs';
 
@@ -46,6 +47,14 @@ try {
   appendToSection(story.file, cfg.sections.log, `- ${today()} — ${t.log[role]}${note ? ` ${note}` : ''} (${from} → ${target})`);
   writeFileSync(backlogFile(pm), renderBacklog(pm, t));
   console.log(t.moved(sid, from, target, pm.rel(story.file)));
+  // Índices escritos a mano: la celda de estado de la fila de la historia (los totales, a mano).
+  for (const rel of cfg.mirrors ?? []) {
+    const file = path.join(pm.root, rel);
+    if (!existsSync(file)) continue;
+    const r = setMirrorState(readFileSync(file, 'utf8'), sid, target, cfg.stateList);
+    if (r.rows) writeFileSync(file, r.text);
+    console.log(r.rows ? t.mirrorUpdated(rel, r.rows) : `⚠ ${t.mirrorMissing(sid, rel)}`);
+  }
 
   if (!githubOff(args, cfg)) {
     // Import dinámico: sin GitHub, el init no instala sync-issue.mjs.

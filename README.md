@@ -257,6 +257,12 @@ Para adoptar backlog-kit en un proyecto que ya tenía su `.pm/`:
   escrito a mano.
 - `"templates": { "story": "historia.md" }`: la plantilla de historia que usan `pm:new` y las skills
   (por defecto `story.md`).
+- `"mirrors": [".pm/backlog.md"]`: índices escritos a mano con una tabla `| ID | … | ESTADO |`. `pm:advance`
+  (y el tablero) actualiza la celda de estado de la fila de la historia, conservando lo que siga al estado
+  («DESCARTADO — superseded por …»); los totales siguen a mano. `pm:check` avisa las filas que faltan o no
+  coinciden, sin cortar.
+- `"dependencies": { "cycles": "warn" }`: los ciclos de dependencias se avisan y no cortan el guard (para
+  adoptar un `.pm/` que ya los tiene y arreglarlos de a poco).
 - `"dependencies": { "mode": "first", "skip": "^(precede|no depende)" }`: de cada ítem de la sección de
   dependencias toma solo el primer id (el resto suele ser contexto) y saltea las relaciones inversas.
 - `"requireBranch": false`: no exige el campo de rama en las historias en curso o en review.
