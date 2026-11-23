@@ -7,7 +7,7 @@ description: Mostrar el estado del proyecto y sugerir qué hacer. Usar para "¿q
 
 1. Leé `.pm/backlog.md` (generado; si dudás, `npm run pm:backlog` primero).
 2. Si hay algo en {{S.inProgress}}, leé el final de su "{{sections.log}}".
-{{#github}}3. Si el usuario pregunta por GitHub: `npm run pm:issue -- --verificar`.
+{{#github}}3. Si el usuario pregunta por {{forgeName}}: `npm run pm:issue -- --verificar`.
 {{/github}}
 Respuesta corta y accionable:
 

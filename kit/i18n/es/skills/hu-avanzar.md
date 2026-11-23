@@ -22,14 +22,14 @@ El tablero de VS Code hace lo mismo al arrastrar una tarjeta.
 | {{S.done}} | **Solo si el usuario lo aceptó explícitamente.** Nunca por iniciativa propia |
 | {{S.blocked}} | `--nota "<qué falta> (depende de: <quién/qué>)"` es obligatoria |
 {{#github}}
-## Al pasar a {{S.review}}, abrir el PR
+## Al pasar a {{S.review}}, abrir el {{prName}}
 
 ```bash
-npm run pm:pr        # push + PR con historia, criterios, último log y Closes #<issue>
+npm run pm:pr        # push + {{prName}} con historia, criterios, último log y Closes #<issue>
 ```
 
 El número del issue sale de `npm run pm:issue -- {{storyPrefix}}-NNN`, nunca del id.
 {{/github}}
 ## Reportar
 
-Transición, ruta del README{{#github}}, link del issue y del PR si lo hay{{/github}}.
+Transición, ruta del README{{#github}}, link del issue y del {{prName}} si lo hay{{/github}}.

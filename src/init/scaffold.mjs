@@ -29,6 +29,10 @@ export const DEFAULTS = {
   claude: 'project',
   mcp: true,
   claudeAction: false,
+  // Dónde viven issues y PR/MR: 'github' (CLI gh) o 'gitlab' (API REST con GITLAB_TOKEN).
+  forge: 'github',
+  gitlabUrl: undefined, // si falta, GITLAB_URL del entorno o de .env.local
+  gitlabProject: undefined, // si falta, sale del remote origin
 };
 
 export const SKILLS = {
@@ -70,6 +74,9 @@ export function buildConfig(opts) {
     github: { enabled: Boolean(o.github) },
     gitGuard: { enabled: Boolean(o.gitGuard) },
     claude: { mode: o.claude === 'plugin' ? 'plugin' : 'project' },
+    ...(o.forge === 'gitlab'
+      ? { forge: { provider: 'gitlab', ...(o.gitlabUrl ? { url: o.gitlabUrl } : {}), ...(o.gitlabProject ? { project: o.gitlabProject } : {}) } }
+      : {}),
   };
 }
 
@@ -112,6 +119,9 @@ export function templateContext(cfgRaw, opts = {}) {
       ? `\n- ${cfg.fields.map((f) => `**${f.label}** (\`${f.key}\`${f.values ? `: ${f.values.join(' / ')}` : ''})`).join(', ')}.`
       : '',
     github: cfg.github.enabled,
+    gitlab: cfg.forge?.provider === 'gitlab',
+    forgeName: cfg.forge?.provider === 'gitlab' ? 'GitLab' : 'GitHub',
+    prName: cfg.forge?.provider === 'gitlab' ? 'MR' : 'PR',
     gitGuard: cfg.gitGuard.enabled,
     plugin: opts.claude === 'plugin',
     project: opts.claude !== 'plugin',
@@ -132,6 +142,7 @@ function walk(dir) {
 /** Lista de acciones del init. No toca el disco. */
 export function planInit(root, opts, kitDir) {
   const o = { ...DEFAULTS, ...opts };
+  const gitlab = o.forge === 'gitlab';
   const cfgRaw = buildConfig(o);
   const ctx = templateContext(cfgRaw, o);
   const lang = cfgRaw.language;
@@ -167,7 +178,8 @@ export function planInit(root, opts, kitDir) {
   if (o.skills) {
     if (o.claude !== 'plugin') {
       for (const name of SKILLS[lang]) {
-        if (!o.github && GITHUB_ONLY_SKILLS.includes(name)) continue;
+        // Adoptar issues usa el CLI gh: en GitLab, por ahora, no se instala.
+        if ((!o.github || gitlab) && GITHUB_ONLY_SKILLS.includes(name)) continue;
         add(`.claude/skills/${name}/SKILL.md`, tpl(`skills/${name}.md`), 'seed');
       }
       for (const name of AGENTS[lang]) add(`.claude/agents/${name}.md`, tpl(`agents/${name}.md`), 'seed');
@@ -176,8 +188,9 @@ export function planInit(root, opts, kitDir) {
     add('CLAUDE.md', `${CLAUDE_BEGIN}\n${tpl('claude.md').trim()}\n${CLAUDE_END}\n`, 'merge-claude');
     add('.claude/settings.json', null, 'merge-settings');
   }
-  if (o.ci) add('.github/workflows/backlog.yml', render(readFileSync(path.join(kitDir, 'github/backlog.yml'), 'utf8'), ctx), 'seed');
-  if (o.claudeAction) add('.github/workflows/claude.yml', render(readFileSync(path.join(kitDir, 'github/claude.yml'), 'utf8'), ctx), 'seed');
+  if (o.ci && gitlab) add('.gitlab/ci/backlog.yml', render(readFileSync(path.join(kitDir, 'gitlab/backlog-ci.yml'), 'utf8'), ctx), 'seed');
+  else if (o.ci) add('.github/workflows/backlog.yml', render(readFileSync(path.join(kitDir, 'github/backlog.yml'), 'utf8'), ctx), 'seed');
+  if (o.claudeAction && !gitlab) add('.github/workflows/claude.yml', render(readFileSync(path.join(kitDir, 'github/claude.yml'), 'utf8'), ctx), 'seed');
   add('package.json', null, 'merge-package');
 
   // Un proyecto que backlog-kit no inicializó puede tener sus propios scripts con el mismo nombre:
@@ -260,7 +273,8 @@ export function mergeSettings(current, o) {
     'Bash(npm run pm:next:*)',
     'Bash(npm run pm:stats:*)',
     ...(o.claude !== 'plugin' && o.mcp ? ['mcp__backlog__story_list', 'mcp__backlog__story_get', 'mcp__backlog__story_next', 'mcp__backlog__backlog_stats'] : []),
-    ...(o.github ? ['Bash(npm run pm:issue:*)', 'Bash(gh issue view:*)', 'Bash(gh issue list:*)', 'Bash(gh pr view:*)', 'Bash(gh pr checks:*)'] : []),
+    ...(o.github ? ['Bash(npm run pm:issue:*)'] : []),
+    ...(o.github && o.forge !== 'gitlab' ? ['Bash(gh issue view:*)', 'Bash(gh issue list:*)', 'Bash(gh pr view:*)', 'Bash(gh pr checks:*)'] : []),
   ];
   for (const a of allow) if (!s.permissions.allow.includes(a)) s.permissions.allow.push(a);
   s.hooks ??= {};
@@ -320,6 +334,7 @@ export function planUpgrade(root, kitDir) {
       mainBranch: cfg.mainBranch,
       github: cfg.github?.enabled !== false,
       gitGuard: cfg.gitGuard?.enabled !== false,
+      forge: cfg.forge?.provider === 'gitlab' ? 'gitlab' : 'github',
       skills: false,
       ci: false,
     },

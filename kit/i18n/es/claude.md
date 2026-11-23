@@ -21,7 +21,7 @@ configuración está en `.pm/config.json`. El tablero se abre en VS Code con "Ba
 2. npm run pm:start -- {{storyPrefix}}-NNN  → {{S.inProgress}} y rama desde origin/{{mainBranch}}
 3. Implementar según el plan. Hito → /{{skillPrefix}}hu-log. Decisión que trasciende → /{{skillPrefix}}doc-adr. Trampa → /{{skillPrefix}}doc-hallazgo.
 4. `{{checkCommand}}` limpio → subagente revisor-criterios → tildar lo verificado
-   → /{{skillPrefix}}hu-avanzar {{storyPrefix}}-NNN {{S.review}}{{#github}} → npm run pm:pr (arma el PR con "Closes #<issue>"){{/github}}
+   → /{{skillPrefix}}hu-avanzar {{storyPrefix}}-NNN {{S.review}}{{#github}} → npm run pm:pr (arma el {{prName}} con "Closes #<issue>"){{/github}}
 5. El usuario acepta → /{{skillPrefix}}hu-avanzar {{storyPrefix}}-NNN {{S.done}}
 ```
 
@@ -38,11 +38,11 @@ Laterales: {{S.blocked}} (con nota de qué/quién) y {{S.discarded}}.
 
 ### Reglas firmes
 
-- **Una historia = una rama = un PR.**
+- **Una historia = una rama = un {{prName}}.**
 - **No tocar código sin una historia en {{S.ready}} o {{S.inProgress}}**, salvo arreglos triviales.
 - **El próximo id sale de `npm run pm:next-id`** (mira ramas remotas e issues). Nunca lo deduzcas.
 {{#github}}- **El id de la historia no es el número del issue**: sale de `{{K.issue}}` (`npm run pm:issue -- <ID>`).
-{{/github}}{{#gitGuard}}- **`{{mainBranch}}` solo cambia por PR mergeado con CI en verde.** Lo hacen cumplir `scripts/hooks/git-guard.mjs` y `.githooks/pre-push`. Si un hook corta, no se busca la vuelta.
+{{/github}}{{#gitGuard}}- **`{{mainBranch}}` solo cambia por {{prName}} mergeado con CI en verde.** Lo hacen cumplir `scripts/hooks/git-guard.mjs` y `.githooks/pre-push`. Si un hook corta, no se busca la vuelta.
 {{/gitGuard}}- **Si el guard (`pm:check`) o el hook cortan, se arregla la causa.**
 
 | Momento | Skill |

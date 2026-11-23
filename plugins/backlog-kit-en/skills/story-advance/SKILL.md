@@ -22,14 +22,14 @@ The VS Code board does the same when you drag a card.
 | DONE | **Only if the user explicitly accepted it.** Never on your own |
 | BLOCKED | `--note "<what is missing> (depends on: <who/what>)"` is required |
 
-## When moving to IN_REVIEW, open the PR
+## When moving to IN_REVIEW, open the PR/MR
 
 ```bash
-npm run pm:pr        # push + PR with story, criteria, last log and Closes #<issue>
+npm run pm:pr        # push + PR/MR with story, criteria, last log and Closes #<issue>
 ```
 
 The issue number comes from `npm run pm:issue -- US-NNN`, never from the id.
 
 ## Report
 
-Transition, README path, issue and PR links if any.
+Transition, README path, issue and PR/MR links if any.

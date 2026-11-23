@@ -1,6 +1,6 @@
 ---
 name: story-new
-description: Create a new user story in .pm/{{#github}} and its GitHub issue{{/github}}. Use when the user asks for a feature, story, ticket or a non-trivial fix, or says "add this to the backlog". Also when new work shows up in the middle of another story.
+description: Create a new user story in .pm/{{#github}} and its {{forgeName}} issue{{/github}}. Use when the user asks for a feature, story, ticket or a non-trivial fix, or says "add this to the backlog". Also when new work shows up in the middle of another story.
 ---
 
 # /story-new — Create a story

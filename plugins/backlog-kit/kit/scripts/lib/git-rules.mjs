@@ -154,6 +154,20 @@ export function pushTargets(args, currentBranch, PROTECTED = 'main') {
   return refspecs.map((r) => (r === 'HEAD' ? currentBranch : pushTarget(r)));
 }
 
+const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh']);
+
+/** El comando de `<shell> [-flags] -c "<cmd>"` o `eval <args…>`, o null si el segmento no es eso. */
+export function nestedCommand(tokens) {
+  const t = stripEnv(tokens);
+  const head = t[0] ? path.basename(t[0]) : '';
+  if (head === 'eval') return t.slice(1).join(' ');
+  if (!SHELLS.has(head)) return null;
+  for (let i = 1; i < t.length && t[i].startsWith('-'); i++) {
+    if (/^-[a-z]*c[a-z]*$/.test(t[i])) return t[i + 1] ?? '';
+  }
+  return null;
+}
+
 /**
  * Evalúa un comando de Bash. `currentBranch` es la rama o una función dir → rama, para leerla
  * en el directorio de cada segmento. Devuelve:
@@ -163,7 +177,16 @@ export function pushTargets(args, currentBranch, PROTECTED = 'main') {
  */
 export function evaluate(command, currentBranch, fallbackDir = '.', { protectedBranch: PROTECTED = 'main', lang = 'es' } = {}) {
   const T = text(lang);
+  const opts = { protectedBranch: PROTECTED, lang };
   for (const { tokens, dir } of segmentsWithDir(command, fallbackDir)) {
+    // `bash -c "git push origin main"`, `eval "…"`: el comando real va entre comillas, como un solo
+    // token. Se evalúa lo de adentro con las mismas reglas.
+    const inner = nestedCommand(tokens);
+    if (inner !== null) {
+      const verdict = evaluate(inner, currentBranch, dir, opts);
+      if (verdict.block || verdict.needsChecks) return verdict;
+      continue;
+    }
     const branch = typeof currentBranch === 'function' ? currentBranch(dir) : currentBranch;
     const git = gitCall(tokens);
     if (git?.sub === 'commit' && branch === PROTECTED) {

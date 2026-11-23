@@ -3,7 +3,7 @@
 // de hoy, Claude sigue un paso más para registrar el avance (y revisar criterios si dijo que
 // terminó). Una sola vez por sesión: nunca entra en bucle.
 import { execFileSync } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createPm, section, today } from '../lib/pm.mjs';
@@ -14,8 +14,17 @@ const input = await readInput();
 if (input.stop_hook_active) process.exit(0);
 const root = projectRoot(input);
 if (!root) process.exit(0);
-const marker = path.join(os.tmpdir(), `backlog-kit-stop-${String(input.session_id ?? 'x').replace(/[^\w-]/g, '')}`);
+// Un marcador por sesión, en su carpeta; los de más de 2 días se borran (las sesiones no avisan al cerrar).
+const markers = path.join(os.tmpdir(), 'backlog-kit-stop');
+const marker = path.join(markers, String(input.session_id ?? 'x').replace(/[^\w-]/g, ''));
 if (existsSync(marker)) process.exit(0);
+try {
+  mkdirSync(markers, { recursive: true });
+  const old = Date.now() - 2 * 86_400_000;
+  for (const f of readdirSync(markers)) if (statSync(path.join(markers, f)).mtimeMs < old) rmSync(path.join(markers, f), { force: true });
+} catch {
+  // sin tmp escribible: el marcador de abajo falla igual y el hook no frena nada
+}
 try {
   const pm = createPm(root);
   const { cfg } = pm;

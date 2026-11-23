@@ -1,6 +1,7 @@
 // Lectura y escritura de .pm/ (épicas e historias). Sin dependencias: solo node:*.
 //
-// El frontmatter es YAML plano (clave: valor, listas en línea [a, b]). El parser cubre solo eso a
+// El frontmatter es YAML plano (clave: valor, listas en línea [a, b]). Un comentario es " # " con
+// espacio después del #: "#441" o "#12" en un nombre son texto. El parser cubre solo eso a
 // propósito: si alguien escribe YAML más rico, el guard lo marca. Todo recibe la raíz del proyecto
 // para que lo usen igual los scripts y la extensión.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -12,7 +13,7 @@ export function parseFrontmatter(text) {
   if (!m) return { data: null, body: text };
   const data = {};
   for (const raw of m[1].split('\n')) {
-    if (!raw.replace(/\s+#.*$/, '').trim()) continue;
+    if (!raw.replace(COMMENT, '').trim()) continue;
     const kv = raw.match(/^([a-z_]+):[ \t]*(.*)$/);
     if (!kv) throw new Error(`Línea de frontmatter no soportada / unsupported frontmatter line: "${raw}"`);
     data[kv[1]] = parseValue(kv[2]);
@@ -20,11 +21,14 @@ export function parseFrontmatter(text) {
   return { data, body: text.replace(/\r\n/g, '\n').slice(m[0].length) };
 }
 
-// Un valor entre comillas puede tener " #" adentro; sin comillas, " #" empieza un comentario.
+// "# " al principio de la línea o " # " después de un valor: comentario hasta el final.
+const COMMENT = /(?:^|\s+)#(?:\s.*)?$/;
+
+// Entre comillas, un valor puede tener " # " adentro.
 function parseValue(raw) {
-  const quoted = raw.match(/^(["'])(.*?)\1(?:\s+#.*)?\s*$/);
+  const quoted = raw.match(/^(["'])(.*?)\1(?:\s+#(?:\s.*)?)?\s*$/);
   if (quoted) return quoted[2];
-  const v = raw.replace(/(^|\s+)#.*$/, '').trim();
+  const v = raw.replace(COMMENT, '').trim();
   if (v === '') return null;
   if (v.startsWith('[') && v.endsWith(']')) {
     const inner = v.slice(1, -1).trim();
@@ -34,10 +38,10 @@ function parseValue(raw) {
   return v.replace(/^["']|["']$/g, '');
 }
 
-/** Entre comillas si sin ellas el parser lo leería distinto (" #", comillas o corchete al inicio). */
+/** Entre comillas si sin ellas el parser lo leería distinto (" # ", comillas, # o corchete al inicio). */
 function renderScalar(value) {
   const v = value ?? '';
-  if (typeof v !== 'string' || !(/\s#/.test(v) || /^["'#[]/.test(v))) return v;
+  if (typeof v !== 'string' || !(/\s#(\s|$)/.test(v) || /^["'#[]/.test(v))) return v;
   return v.includes('"') ? `'${v}'` : `"${v}"`;
 }
 
@@ -47,7 +51,7 @@ export function setFields(file, fields) {
   for (const [key, value] of Object.entries(fields)) {
     const rendered = Array.isArray(value) ? `[${value.join(', ')}]` : renderScalar(value);
     // Separa "clave: valor" del comentario "# ..." y conserva la columna del comentario.
-    const re = new RegExp(`^(${key}:[^#\\n]*?)([ \\t]*#.*)?$`, 'm');
+    const re = new RegExp(`^(${key}:.*?)([ \\t]+#(?:[ \\t].*)?)?$`, 'm');
     const fm = text.match(/^---\n[\s\S]*?\n---/)[0];
     const next = re.test(fm)
       ? fm.replace(re, (whole, _kv, comment) => {
@@ -115,8 +119,10 @@ function dirs(p) {
     : [];
 }
 
-export function today() {
-  return new Date().toISOString().slice(0, 10);
+/** Fecha local AAAA-MM-DD. No UTC: en UTC-3, después de las 21 h el log quedaba con fecha de mañana. */
+export function today(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 /** Acceso a .pm/ de un proyecto. `cfg` se puede pasar ya resuelto (tests, extensión). */
@@ -175,6 +181,8 @@ export function createPm(root, cfg = loadConfig(root)) {
     const norm = normalizeId(id);
     const story = loadStories().find((s) => s.data?.[K.id] === norm || s.folder.startsWith(`${norm}-`));
     if (!story) throw new Error(`No existe / not found: ${norm}`);
+    if (!story.data)
+      throw new Error(`${path.relative(root, story.file)}: ${story.error ?? 'sin frontmatter / no frontmatter'}. Corregilo antes de seguir / fix it first.`);
     return story;
   }
 

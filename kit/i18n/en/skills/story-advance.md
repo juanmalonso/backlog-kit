@@ -22,14 +22,14 @@ The VS Code board does the same when you drag a card.
 | {{S.done}} | **Only if the user explicitly accepted it.** Never on your own |
 | {{S.blocked}} | `--note "<what is missing> (depends on: <who/what>)"` is required |
 {{#github}}
-## When moving to {{S.review}}, open the PR
+## When moving to {{S.review}}, open the {{prName}}
 
 ```bash
-npm run pm:pr        # push + PR with story, criteria, last log and Closes #<issue>
+npm run pm:pr        # push + {{prName}} with story, criteria, last log and Closes #<issue>
 ```
 
 The issue number comes from `npm run pm:issue -- {{storyPrefix}}-NNN`, never from the id.
 {{/github}}
 ## Report
 
-Transition, README path{{#github}}, issue and PR links if any{{/github}}.
+Transition, README path{{#github}}, issue and {{prName}} links if any{{/github}}.

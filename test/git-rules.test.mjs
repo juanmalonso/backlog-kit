@@ -146,3 +146,20 @@ describe('configurable', () => {
     expect(prePushProblem('a b refs/heads/main c', { protectedBranch: 'trunk' })).toBeNull();
   });
 });
+
+describe('comandos anidados', () => {
+  each([
+    `bash -c "git push origin main"`,
+    `sh -lc 'git push origin HEAD:main'`,
+    `/bin/bash -c "cd x && git push --force origin main"`,
+    `FOO=1 zsh -c "git push origin main"`,
+    `eval "git push origin main"`,
+    `bash -c "bash -c 'git push origin main'"`,
+  ])('bloquea %s', (cmd) => expect(blocked(cmd)).toBe(true));
+  it('commit en main dentro de bash -c', () => expect(blocked(`bash -c "git commit -m x"`, 'main')).toBe(true));
+  it('deja pasar lo que no toca main', () => expect(blocked(`bash -c "git push origin hu-048-x"`)).toBe(false));
+  it('un mensaje de commit que nombra bash -c no es un comando', () =>
+    expect(blocked(`git commit -m 'bash -c "git push origin main"'`)).toBe(false));
+  it('gh pr merge dentro de bash -c pide checks', () =>
+    expect(evaluate(`bash -c "gh pr merge 7"`, 'x').needsChecks?.pr).toBe('7'));
+});

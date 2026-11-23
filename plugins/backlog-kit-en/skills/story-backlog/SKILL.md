@@ -7,7 +7,7 @@ description: Show project status and suggest what to do next. Use for "what's th
 
 1. Read `.pm/backlog.md` (generated; if in doubt, run `npm run pm:backlog` first).
 2. If something is IN_PROGRESS, read the end of its "Progress log".
-3. If the user asks about GitHub: `npm run pm:issue -- --verify`.
+3. If the user asks about GitHub/GitLab: `npm run pm:issue -- --verify`.
 
 Short, actionable answer:
 

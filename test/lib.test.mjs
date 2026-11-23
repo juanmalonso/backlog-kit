@@ -43,18 +43,24 @@ describe('reemplazos y comentarios', () => {
     expect(readFileSync(file, 'utf8')).toBe('## Criterios\n\n- [ ] cuesta US$1.000 y $& otro\n- [x] dos\n');
   });
 
-  it('setFields con "$&" y " #" en el valor: se escribe tal cual y se vuelve a leer igual', () => {
+  it('setFields con "$&" y " # " en el valor: se escribe tal cual y se vuelve a leer igual', () => {
     const file = tmp('---\nid: HU-001\nestado: BACKLOG   # BACKLOG | LISTO\n---\n\ncuerpo\n');
-    setFields(file, { nombre: 'Arreglar bug #12 por $& US$1', estado: 'LISTO' });
+    setFields(file, { nombre: 'Arreglar bug # 12 por $& US$1', estado: 'LISTO' });
     const { data, body } = parseFrontmatter(readFileSync(file, 'utf8'));
-    expect(data.nombre).toBe('Arreglar bug #12 por $& US$1');
+    expect(data.nombre).toBe('Arreglar bug # 12 por $& US$1');
     expect(data.estado).toBe('LISTO');
     expect(body).toBe('\ncuerpo\n');
   });
 
   it('parseFrontmatter: comentario sin comillas, " #" con comillas, vacío con comentario', () => {
-    const { data } = parseFrontmatter('---\na: valor   # nota\nb: "con #12 adentro"  # nota\nc:      # vacío\nd: [x, y]\ne: 3\n---\n');
-    expect(data).toEqual({ a: 'valor', b: 'con #12 adentro', c: null, d: ['x', 'y'], e: 3 });
+    const { data } = parseFrontmatter('---\na: valor   # nota\nb: "con # adentro"  # nota\nc:      # vacío\nd: [x, y]\ne: 3\nf: Fix «React #441» y #12\n---\n');
+    expect(data).toEqual({ a: 'valor', b: 'con # adentro', c: null, d: ['x', 'y'], e: 3, f: 'Fix «React #441» y #12' });
+  });
+
+  it('setFields respeta "#12" en el valor y el comentario de la línea', () => {
+    const file = tmp('---\nnombre: Fix «React #441»\ntipo: feature   # feature | fix\n---\n');
+    setFields(file, { tipo: 'fix', nombre: 'Fix «React #441» bis' });
+    expect(readFileSync(file, 'utf8')).toBe('---\nnombre: Fix «React #441» bis\ntipo: fix       # feature | fix\n---\n');
   });
 });
 

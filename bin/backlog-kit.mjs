@@ -7,6 +7,7 @@
 //                        [--fields phase,stage,requirements,spec] [--epic "Nombre"]
 //                        [--no-skills] [--no-github] [--no-git-guard] [--no-ci] [--dry-run] [--force]
 //                        [--claude project|plugin] [--no-mcp] [--claude-action]
+//                        [--forge github|gitlab] [--gitlab-url URL] [--gitlab-project grupo/repo]
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyInit, planInit, planUpgrade } from '../src/init/scaffold.mjs';
@@ -44,6 +45,9 @@ try {
     claude: value('--claude') === 'plugin' ? 'plugin' : 'project',
     mcp: !has('--no-mcp'),
     claudeAction: has('--claude-action'),
+    forge: value('--forge') === 'gitlab' ? 'gitlab' : 'github',
+    gitlabUrl: value('--gitlab-url'),
+    gitlabProject: value('--gitlab-project'),
   },
   KIT,
 );

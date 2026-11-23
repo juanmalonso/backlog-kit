@@ -22,14 +22,14 @@ El tablero de VS Code hace lo mismo al arrastrar una tarjeta.
 | HECHO | **Solo si el usuario lo aceptó explícitamente.** Nunca por iniciativa propia |
 | BLOQUEADO | `--nota "<qué falta> (depende de: <quién/qué>)"` es obligatoria |
 
-## Al pasar a EN_REVIEW, abrir el PR
+## Al pasar a EN_REVIEW, abrir el PR/MR
 
 ```bash
-npm run pm:pr        # push + PR con historia, criterios, último log y Closes #<issue>
+npm run pm:pr        # push + PR/MR con historia, criterios, último log y Closes #<issue>
 ```
 
 El número del issue sale de `npm run pm:issue -- HU-NNN`, nunca del id.
 
 ## Reportar
 
-Transición, ruta del README, link del issue y del PR si lo hay.
+Transición, ruta del README, link del issue y del PR/MR si lo hay.

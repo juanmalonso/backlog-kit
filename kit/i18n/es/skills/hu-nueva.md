@@ -1,6 +1,6 @@
 ---
 name: hu-nueva
-description: Crear una historia de usuario nueva en .pm/{{#github}} y su issue de GitHub{{/github}}. Usar cuando el usuario pide una funcionalidad, una historia, un ticket o un arreglo no trivial, o dice "agregá esto al backlog". También cuando aparece trabajo nuevo en medio de otra historia.
+description: Crear una historia de usuario nueva en .pm/{{#github}} y su issue de {{forgeName}}{{/github}}. Usar cuando el usuario pide una funcionalidad, una historia, un ticket o un arreglo no trivial, o dice "agregá esto al backlog". También cuando aparece trabajo nuevo en medio de otra historia.
 ---
 
 # /hu-nueva — Crear una historia

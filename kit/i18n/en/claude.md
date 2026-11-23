@@ -21,7 +21,7 @@ are in `.pm/config.json`. Open the board in VS Code with "Backlog Kit: Open boar
 2. npm run pm:start -- {{storyPrefix}}-NNN  → {{S.inProgress}} and branch from origin/{{mainBranch}}
 3. Implement the plan. Milestone → /{{skillPrefix}}story-log. Cross-story decision → /{{skillPrefix}}doc-adr. Trap → /{{skillPrefix}}doc-finding.
 4. `{{checkCommand}}` clean → criteria-reviewer subagent → tick what was verified
-   → /{{skillPrefix}}story-advance {{storyPrefix}}-NNN {{S.review}}{{#github}} → npm run pm:pr (builds the PR with "Closes #<issue>"){{/github}}
+   → /{{skillPrefix}}story-advance {{storyPrefix}}-NNN {{S.review}}{{#github}} → npm run pm:pr (builds the {{prName}} with "Closes #<issue>"){{/github}}
 5. The user accepts → /{{skillPrefix}}story-advance {{storyPrefix}}-NNN {{S.done}}
 ```
 
@@ -38,11 +38,11 @@ Side states: {{S.blocked}} (with a note on what/who) and {{S.discarded}}.
 
 ### Hard rules
 
-- **One story = one branch = one PR.**
+- **One story = one branch = one {{prName}}.**
 - **No code changes without a story in {{S.ready}} or {{S.inProgress}}**, except trivial fixes.
 - **The next id comes from `npm run pm:next-id`** (checks remote branches and issues). Never guess it.
 {{#github}}- **The story id is not the issue number**: it comes from `{{K.issue}}` (`npm run pm:issue -- <ID>`).
-{{/github}}{{#gitGuard}}- **`{{mainBranch}}` only changes through a merged PR with green CI.** Enforced by `scripts/hooks/git-guard.mjs` and `.githooks/pre-push`. If a hook blocks, do not work around it.
+{{/github}}{{#gitGuard}}- **`{{mainBranch}}` only changes through a merged {{prName}} with green CI.** Enforced by `scripts/hooks/git-guard.mjs` and `.githooks/pre-push`. If a hook blocks, do not work around it.
 {{/gitGuard}}- **If the guard (`pm:check`) or the hook blocks, fix the cause.**
 
 | Moment | Skill |

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0
+
+**GitLab**
+- `forge.provider: "gitlab"` (o `init --forge gitlab`): issues, labels, milestones, comentarios y MR
+  por la API REST, también self-hosted. Token en `GITLAB_TOKEN` (entorno o `.env.local`), labels con
+  alcance `estado::X` y épica por carpeta opcional. El tablero muestra los MR con su pipeline.
+- `pm:sync` conserva los labels ajenos al kit y no pisa la descripción de un issue que no generó
+  (`--cuerpo` para reemplazarla). `pm:setup-github` ya no cambia lo existente sin `--actualizar`.
+
+**Arreglos**
+- Tildar un criterio o cambiar un campo con `$1` / `$&` en el texto corrompía el README.
+- `#12` en un nombre ya no se lee como comentario (un comentario es ` # `), y los valores con ` # `
+  se escriben entre comillas.
+- Las fechas del log son locales, no UTC (en UTC-3, después de las 21 h quedaban con fecha de mañana).
+- El hook Stop reconoce "terminé" y limpia sus marcadores viejos.
+- El guard de la rama mira adentro de `bash -c "…"`, `sh -c` y `eval`.
+- Una historia con frontmatter roto da un error con el archivo, no un TypeError.
+
 ## 0.3.0
 
 **Scripts**
