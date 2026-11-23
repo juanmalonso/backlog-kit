@@ -22,14 +22,25 @@ The VS Code board does the same when you drag a card.
 | {{S.done}} | **Only if the user explicitly accepted it.** Never on your own |
 | {{S.blocked}} | `--note "<what is missing> (depends on: <who/what>)"` is required |
 {{#github}}
-## When moving to {{S.review}}, open the PR
+## When moving to {{S.review}}, open the {{prName}}
 
 ```bash
-npm run pm:pr        # push + PR with story, criteria, last log and Closes #<issue>
+npm run pm:pr        # push + {{prName}} with story, criteria, last log and Closes #<issue>
 ```
 
-The issue number comes from `npm run pm:issue -- {{storyPrefix}}-NNN`, never from the id.
-{{/github}}
+The issue number comes from `npm run pm:issue -- {{storyPrefix}}-NNN`, never from the id. Merge with
+`npm run pm:merge -- <n>` (only with green CI and no conflicts; `--dry-run` shows the commits that go in).
+
+## When the issue does not match
+
+`pm:advance` and `pm:issue` check that the issue in `{{K.issue}}` has this story's title. If they fail, **fix the
+data** (`npm run pm:issue -- --verify` audits them all): the degraded mode is writing to someone else's story. Do not
+change labels by hand: the script sends the full list in one request, because adding and removing labels in the same
+request clash and the API still answers 200.
+{{/github}}{{#kiwi}}
+Kiwi: every transition syncs the test cases with Kiwi TCMS. If Kiwi does not answer, it warns and the status change
+goes on; re-sync later with `npm run pm:kiwi -- {{storyPrefix}}-NNN`.
+{{/kiwi}}
 ## Report
 
-Transition, README path{{#github}}, issue and PR links if any{{/github}}.
+Transition, README path{{#github}}, issue and {{prName}} links if any{{/github}}.

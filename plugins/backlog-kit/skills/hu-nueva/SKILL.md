@@ -1,6 +1,6 @@
 ---
 name: hu-nueva
-description: Crear una historia de usuario nueva en .pm/ y su issue de GitHub. Usar cuando el usuario pide una funcionalidad, una historia, un ticket o un arreglo no trivial, o dice "agregá esto al backlog". También cuando aparece trabajo nuevo en medio de otra historia.
+description: Crear una historia de usuario nueva en .pm/ y su issue de GitHub/GitLab. Usar cuando el usuario pide una funcionalidad, una historia, un ticket o un arreglo no trivial, o dice "agregá esto al backlog". También cuando aparece trabajo nuevo en medio de otra historia.
 ---
 
 # /hu-nueva — Crear una historia
@@ -20,6 +20,9 @@ Si no está claro, preguntá con ejemplos concretos:
 npm run pm:next-id        # nunca deduzcas el id: mira ramas remotas e issues
 ```
 
+**Por qué**: con varias sesiones en paralelo, "el más alto del backlog + 1" ya dio dos historias con el
+mismo id el mismo día. El número más alto puede estar en otra rama o sólo en un issue.
+
 Creá `.pm/<épica>/HU-NNN-<slug-kebab-sin-acentos>/README.md` copiando `.pm/templates/story.md`.
 
 ## 3. Completar el README
@@ -37,6 +40,13 @@ El hook regenera el backlog y corre el guard al guardar. Si corta, arreglá lo q
 ```bash
 npm run pm:sync -- HU-NNN   # en BACKLOG no crea issue; si no, sí, y escribe github_issue
 ```
+
+`github_issue` es la única fuente de la relación historia → issue. **Nunca lo completes a mano ni lo
+deduzcas del id**: `HU-NNN` no es `#NNN` (los issues de épica y los manuales corren la
+secuencia), y escribirle al issue equivocado le pisa el estado a otra historia sin ningún error.
+
+Con el módulo Kiwi activo, `pm:new` y `pm:advance` aseguran el plan de la épica en Kiwi TCMS; los casos
+se cargan cuando la tabla de casos de prueba tiene filas reales.
 
 ## Reportar
 

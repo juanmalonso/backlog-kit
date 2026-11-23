@@ -142,7 +142,7 @@
           'a',
           { href: '#', class: `pr ci-${s.pr.ci}`, title: `${T.ci[s.pr.ci]}${s.pr.draft ? ` · ${T.draft}` : ''}`, onclick: (e) => { e.preventDefault(); e.stopPropagation(); post({ type: 'link', url: s.pr.url }); } },
           el('span', { class: 'dot', 'aria-hidden': 'true' }),
-          `PR #${s.pr.number}`,
+          `${data.changeName ?? 'PR'} #${s.pr.number}`,
         ),
       );
     const role = roleOf(s.status);
@@ -199,7 +199,7 @@
         { class: 'foot' },
         s.criteria.total ? el('span', { class: 'criteria', title: T.criteria }, `☑ ${s.criteria.done}/${s.criteria.total}`) : null,
         s.issue && data.repoUrl
-          ? el('a', { href: '#', class: 'issue', onclick: (e) => { e.preventDefault(); e.stopPropagation(); post({ type: 'link', url: `${data.repoUrl}/issues/${s.issue}` }); } }, `#${s.issue}`)
+          ? el('a', { href: '#', class: 'issue', onclick: (e) => { e.preventDefault(); e.stopPropagation(); post({ type: 'link', url: `${data.issueBase}${s.issue}` }); } }, `#${s.issue}`)
           : s.issue && el('span', { class: 'issue' }, `#${s.issue}`),
         badges(s),
         mine && el('span', { class: 'mine' }, `⎇ ${T.current}`),
@@ -368,9 +368,9 @@
         !['done', 'discarded'].includes(role) && el('button', { class: 'ghost claude', onclick: () => post({ type: 'claude', id: s.id, status: s.status }) }, `✳ ${T.claude}`),
         el('button', { class: 'ghost', onclick: () => post({ type: 'log', id: s.id }) }, T.actions.log),
         ['ready', 'inProgress'].includes(role) && el('button', { class: 'ghost', onclick: () => post({ type: 'start', id: s.id }) }, T.actions.start),
-        data.github && role === 'review' && !s.pr && el('button', { class: 'ghost', onclick: () => post({ type: 'pr', id: s.id }) }, T.actions.pr),
+        data.github && role === 'review' && !s.pr && el('button', { class: 'ghost', onclick: () => post({ type: 'pr', id: s.id }) }, T.actions.pr.replace('PR', data.changeName ?? 'PR')),
         el('button', { class: 'ghost', onclick: () => post({ type: 'open', path: s.path }) }, T.actions.open),
-        s.issue && data.repoUrl && el('button', { class: 'ghost', onclick: () => post({ type: 'link', url: `${data.repoUrl}/issues/${s.issue}` }) }, `${T.actions.issue} #${s.issue}`),
+        s.issue && data.repoUrl && el('button', { class: 'ghost', onclick: () => post({ type: 'link', url: `${data.issueBase}${s.issue}` }) }, `${T.actions.issue} #${s.issue}`),
         s.pr && el('button', { class: 'ghost', onclick: () => post({ type: 'link', url: s.pr.url }) }, `${T.actions.prLink} #${s.pr.number}`),
       ),
       el('dl', {}, el('dt', {}, T.dependsOn), el('dd', {}, list(s.dependencies)), el('dt', {}, T.dependents), el('dd', {}, list(s.dependents))),

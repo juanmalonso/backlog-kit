@@ -157,3 +157,16 @@ describe('pm:new', () => {
     expect(node(dir, 'scripts/pm/new.mjs', '--epic', 'E09', '--title', 'x').stderr).toMatch(/No existe la épica E09/);
   });
 });
+
+describe('backlogFile', () => {
+  it('el backlog generado va al archivo del config y no toca backlog.md', () => {
+    const dir = setup({ 'HU-001': {} });
+    const cfgFile = path.join(dir, '.pm/config.json');
+    writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(readFileSync(cfgFile, 'utf8')), backlogFile: 'tablero.md' }));
+    writeFileSync(path.join(dir, '.pm/backlog.md'), 'a mano\n');
+    expect(node(dir, 'scripts/pm/backlog.mjs').stdout).toMatch(/\.pm\/tablero\.md regenerado/);
+    expect(readFileSync(path.join(dir, '.pm/backlog.md'), 'utf8')).toBe('a mano\n');
+    expect(readFileSync(path.join(dir, '.pm/tablero.md'), 'utf8')).toMatch(/HU-001/);
+    expect(node(dir, 'scripts/pm/check.mjs').status).toBe(0);
+  });
+});

@@ -7,7 +7,7 @@ description: Implement several stories in parallel, one per worktree, in the ord
 
 A wave is the set of {{S.ready}} stories with no pending dependencies that do not step on each
 other. Each goes in its own worktree and branch, with an implementer and then an independent
-reviewer. Nobody merges: each story ends in a PR{{#github}} with green CI{{/github}}.
+reviewer. Nobody merges: each story ends in a {{prName}}{{#github}} with green CI{{/github}}.
 
 ## 1. Pick the wave
 
@@ -42,6 +42,6 @@ missing, it goes back to the implementer with the list. If two subagents will re
 
 ## 4. Close the wave
 
-- Summarize per story: PR, status{{#github}} of CI{{/github}}, what is still open and decisions the user must make.
-- The user asks for the merge. Then rebase branches that clash on `.pm/backlog.md` (regenerate with `npm run pm:backlog`).
+- Summarize per story: {{prName}}, status{{#github}} of CI{{/github}}, what is still open and decisions the user must make.
+- The user asks for the merge. Then rebase branches that clash on `{{backlogPath}}` (regenerate with `npm run pm:backlog`).
 - `git worktree remove` the merged ones and `npm run pm:next` for the next wave.

@@ -1,6 +1,7 @@
 // Lectura y escritura de .pm/ (épicas e historias). Sin dependencias: solo node:*.
 //
-// El frontmatter es YAML plano (clave: valor, listas en línea [a, b]). El parser cubre solo eso a
+// El frontmatter es YAML plano (clave: valor, listas en línea [a, b]). Un comentario es " # " con
+// espacio después del #: "#441" o "#12" en un nombre son texto. El parser cubre solo eso a
 // propósito: si alguien escribe YAML más rico, el guard lo marca. Todo recibe la raíz del proyecto
 // para que lo usen igual los scripts y la extensión.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -12,16 +13,24 @@ export function parseFrontmatter(text) {
   if (!m) return { data: null, body: text };
   const data = {};
   for (const raw of m[1].split('\n')) {
-    const line = raw.replace(/\s+#.*$/, '');
-    if (!line.trim()) continue;
-    const kv = line.match(/^([a-z_]+):\s*(.*)$/);
+    if (!raw.replace(COMMENT, '').trim()) continue;
+    const kv = raw.match(/^([a-z_]+):[ \t]*(.*)$/);
     if (!kv) throw new Error(`Línea de frontmatter no soportada / unsupported frontmatter line: "${raw}"`);
-    data[kv[1]] = parseValue(kv[2].trim());
+    // Una clave repetida es ambigua: unas herramientas leen la primera y otras la última.
+    if (kv[1] in data) throw new Error(`Clave repetida en el frontmatter / duplicated frontmatter key: "${kv[1]}"`);
+    data[kv[1]] = parseValue(kv[2]);
   }
   return { data, body: text.replace(/\r\n/g, '\n').slice(m[0].length) };
 }
 
-function parseValue(v) {
+// "# " al principio de la línea o " # " después de un valor: comentario hasta el final.
+const COMMENT = /(?:^|\s+)#(?:\s.*)?$/;
+
+// Entre comillas, un valor puede tener " # " adentro.
+function parseValue(raw) {
+  const quoted = raw.match(/^(["'])(.*?)\1(?:\s+#(?:\s.*)?)?\s*$/);
+  if (quoted) return quoted[2];
+  const v = raw.replace(COMMENT, '').trim();
   if (v === '') return null;
   if (v.startsWith('[') && v.endsWith(']')) {
     const inner = v.slice(1, -1).trim();
@@ -31,13 +40,20 @@ function parseValue(v) {
   return v.replace(/^["']|["']$/g, '');
 }
 
+/** Entre comillas si sin ellas el parser lo leería distinto (" # ", comillas, # o corchete al inicio). */
+function renderScalar(value) {
+  const v = value ?? '';
+  if (typeof v !== 'string' || !(/\s#(\s|$)/.test(v) || /^["'#[]/.test(v))) return v;
+  return v.includes('"') ? `'${v}'` : `"${v}"`;
+}
+
 /** Cambia o agrega campos del frontmatter sin tocar el resto del archivo ni sus comentarios. */
 export function setFields(file, fields) {
   let text = readFileSync(file, 'utf8');
   for (const [key, value] of Object.entries(fields)) {
-    const rendered = Array.isArray(value) ? `[${value.join(', ')}]` : (value ?? '');
+    const rendered = Array.isArray(value) ? `[${value.join(', ')}]` : renderScalar(value);
     // Separa "clave: valor" del comentario "# ..." y conserva la columna del comentario.
-    const re = new RegExp(`^(${key}:[^#\\n]*?)([ \\t]*#.*)?$`, 'm');
+    const re = new RegExp(`^(${key}:.*?)([ \\t]+#(?:[ \\t].*)?)?$`, 'm');
     const fm = text.match(/^---\n[\s\S]*?\n---/)[0];
     const next = re.test(fm)
       ? fm.replace(re, (whole, _kv, comment) => {
@@ -46,8 +62,9 @@ export function setFields(file, fields) {
           const col = whole.length - comment.trimStart().length;
           return `${head.padEnd(col - 1)} ${comment.trimStart()}`;
         })
-      : fm.replace(/\n---$/, `\n${key}: ${rendered}\n---`);
-    text = text.replace(fm, next);
+      : fm.replace(/\n---$/, () => `\n${key}: ${rendered}\n---`);
+    // Reemplazos con función: un valor con "$&" o "$1" no se interpreta como patrón.
+    text = text.replace(fm, () => next);
   }
   writeFileSync(file, text);
 }
@@ -82,7 +99,7 @@ export function toggleChecklist(file, title, index, checked) {
     return n === index ? `${a}${checked ? 'x' : ' '}${b}` : whole;
   });
   if (index > n) throw new Error(`${file}: no hay criterio ${index + 1} / no criterion ${index + 1}`);
-  const next = text.replace(re, `${m[1]}${body}`);
+  const next = text.replace(re, () => `${m[1]}${body}`);
   writeFileSync(file, next);
   return next;
 }
@@ -104,8 +121,33 @@ function dirs(p) {
     : [];
 }
 
-export function today() {
-  return new Date().toISOString().slice(0, 10);
+/** Fecha local AAAA-MM-DD. No UTC: en UTC-3, después de las 21 h el log quedaba con fecha de mañana. */
+/**
+ * Ids de la sección de dependencias. Por defecto, todos los que aparecen. Con
+ * `dependencies: { mode: "first" }`, solo el primero de cada ítem de lista (la historia de la que se
+ * depende; el resto suele ser contexto), y `dependencies.skip` (regex, sin distinguir mayúsculas)
+ * descarta los ítems que empiezan con una relación inversa ("Precede a HU-x", "No depende de HU-y").
+ */
+export function dependencyIds(text, cfg) {
+  const re = new RegExp(cfg.idPattern, 'g');
+  const mode = cfg.dependencies?.mode ?? 'all';
+  const skip = cfg.dependencies?.skip ? new RegExp(cfg.dependencies.skip, 'i') : null;
+  if (mode === 'all' && !skip) return [...new Set(text.match(re) ?? [])];
+  const out = [];
+  for (const line of text.split('\n')) {
+    const item = line.match(/^\s*(?:[-*+]|\d+\.)\s+(.*)$/);
+    if (!item) continue;
+    const content = item[1].replace(/^[*_`\s]+/, '');
+    if (skip?.test(content)) continue;
+    const ids = content.match(re) ?? [];
+    out.push(...(mode === 'first' ? ids.slice(0, 1) : ids));
+  }
+  return [...new Set(out)];
+}
+
+export function today(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 /** Acceso a .pm/ de un proyecto. `cfg` se puede pasar ya resuelto (tests, extensión). */
@@ -164,6 +206,8 @@ export function createPm(root, cfg = loadConfig(root)) {
     const norm = normalizeId(id);
     const story = loadStories().find((s) => s.data?.[K.id] === norm || s.folder.startsWith(`${norm}-`));
     if (!story) throw new Error(`No existe / not found: ${norm}`);
+    if (!story.data)
+      throw new Error(`${path.relative(root, story.file)}: ${story.error ?? 'sin frontmatter / no frontmatter'}. Corregilo antes de seguir / fix it first.`);
     return story;
   }
 
@@ -171,7 +215,7 @@ export function createPm(root, cfg = loadConfig(root)) {
   function view(story) {
     const d = story.data ?? {};
     const criteria = checklist(story.body, cfg.sections.criteria);
-    const deps = [...new Set(section(story.body, cfg.sections.dependencies).match(new RegExp(cfg.idPattern, 'g')) ?? [])];
+    const deps = dependencyIds(section(story.body, cfg.sections.dependencies), cfg);
     return {
       id: d[K.id] ?? story.folder,
       epic: story.epic.id,

@@ -3,7 +3,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { run } from '../project';
+import { configOf, run } from '../project';
 import type { ProjectIndex } from './index';
 
 export const collection = vscode.languages.createDiagnosticCollection('backlog-kit');
@@ -45,7 +45,7 @@ export function parseGuardOutput(out: string, root: string, ix: ProjectIndex) {
     const id = item.match(ix.storyRe)?.[0];
     ix.storyRe.lastIndex = 0;
     const story = id ? ix.stories.get(id) : undefined;
-    const file = story?.path ?? path.join(root, '.pm', 'backlog.md');
+    const file = story?.path ?? path.join(root, '.pm', configOf(root).backlogFile ?? 'backlog.md');
     add(file, story ? lineFor(file, item, [ix.cfg.keys.status]) : 0, item);
   }
   return byFile;

@@ -76,6 +76,19 @@ describe('hooks de contexto', () => {
     git(dir, 'switch', '-q', '-f', 'main');
   });
 
+  it('Stop: con log de hoy, "terminé." con criterios pendientes también recuerda (borde tras acento)', () => {
+    git(dir, 'switch', '-q', '-c', 'hu-001-algo-fin');
+    const file = path.join(dir, '.pm/E00-base/HU-001-algo/README.md');
+    const today = new Date().toISOString().slice(0, 10);
+    writeFileSync(file, readFileSync(file, 'utf8').replace('rama: hu-001-algo', 'rama: hu-001-algo-fin').replace(/## Log de progreso\n/, `## Log de progreso\n- ${today} — avance\n`));
+    writeFileSync(path.join(dir, 'codigo.js'), 'y');
+    const session = `f-${Date.now()}`;
+    expect(hook(dir, 'stop-check', { session_id: `${session}-a`, cwd: dir, last_assistant_message: 'Sigo mañana.' }).stdout).toBe('');
+    const out = JSON.parse(hook(dir, 'stop-check', { session_id: `${session}-b`, cwd: dir, last_assistant_message: 'Ya terminé.' }).stdout);
+    expect(out.decision).toBe('block');
+    git(dir, 'switch', '-q', '-f', 'main');
+  });
+
   it('statusline: la historia de la rama o el resumen', () => {
     git(dir, 'switch', '-q', 'hu-001-algo');
     expect(hook(dir, 'statusline', { workspace: { current_dir: dir } }).stdout).toBe('HU-001 · EN_CURSO · 1/2  Algo útil');

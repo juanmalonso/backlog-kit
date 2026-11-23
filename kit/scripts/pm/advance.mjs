@@ -50,13 +50,21 @@ try {
   if (!githubOff(args, cfg)) {
     // Import dinámico: sin GitHub, el init no instala sync-issue.mjs.
     const { syncOne } = await import('./sync-issue.mjs');
-    const { createGh } = await import('../lib/gh.mjs');
-    const n = syncOne(pm, sid);
+    const { createForge } = await import('../lib/forge.mjs');
+    const forge = createForge(pm.root, cfg);
+    const n = await syncOne(pm, sid, { forge });
     const updated = parseFrontmatter(readFileSync(story.file, 'utf8')).data;
     if (n && updated[K.issue]) {
-      createGh(pm.root, cfg).api('POST', `repos/{repo}/issues/${updated[K.issue]}/comments`, {
-        body: `${t.stateComment(from, target)}\n\n${t.log[role]}${note ? `\n\n${note}` : ''}`,
-      });
+      await forge.comment(updated[K.issue], `${t.stateComment(from, target)}\n\n${t.log[role]}${note ? `\n\n${note}` : ''}`);
+    }
+  }
+  // Kiwi: no frena el cambio de estado si no responde; avisa y sigue.
+  if (cfg.kiwi?.enabled && !flag('--sin-kiwi', '--no-kiwi')) {
+    try {
+      const { syncKiwi } = await import('../lib/kiwi.mjs');
+      await syncKiwi(pm, sid);
+    } catch (err) {
+      console.error(`⚠ ${err.message}`);
     }
   }
   if (fields[K.branch]) console.log(t.branchHint(fields[K.branch], cfg.mainBranch));

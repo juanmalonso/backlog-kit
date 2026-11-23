@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// Abre el PR de una historia con título y cuerpo armados desde su README: historia, criterios,
-// último log y "Closes #<issue>". Por defecto, la historia de la rama actual. Si ya hay PR, lo muestra.
+// Abre el PR (GitHub) o MR (GitLab) de una historia con título y cuerpo armados desde su README:
+// historia, criterios, último log y "Closes #<issue>". Por defecto, la historia de la rama actual.
+// Si ya hay uno abierto, lo muestra.
 //   npm run pm:pr [-- HU-012] [-- --draft]
 import { execFileSync } from 'node:child_process';
+import { createForge } from '../lib/forge.mjs';
 import { section } from '../lib/pm.mjs';
 import { currentBranch, storyOfBranch } from '../lib/insights.mjs';
 import { isMain, project } from '../lib/project.mjs';
@@ -29,7 +31,7 @@ export function prBody(pm, story) {
   ].join('\n');
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   const pm = project();
   const { cfg, t } = pm;
@@ -43,23 +45,26 @@ function main() {
   if (branch !== v.branch) throw new Error(t.prWrongBranch(v.id, v.branch, branch));
   if (v.status !== cfg.states.review && !args.some((a) => a === '--forzar' || a === '--force'))
     throw new Error(t.prNotReview(v.id, v.status, cfg.states.review));
-  try {
-    const url = sh('gh', ['pr', 'view', v.branch, '--json', 'url', '-q', '.url']);
-    if (url) {
-      console.log(t.prExists(url));
-      return;
-    }
-  } catch {
-    // no hay PR todavía
+  const forge = createForge(pm.root, cfg);
+  const open = await forge.findChange(v.branch);
+  if (open?.url) {
+    console.log(t.prExists(open.url));
+    return;
   }
   sh('git', ['push', '-u', 'origin', v.branch]);
-  const url = sh('gh', ['pr', 'create', '--base', cfg.mainBranch, '--head', v.branch, '--title', `[${v.id}] ${v.title}`, '--body-file', '-', ...(args.includes('--draft') ? ['--draft'] : [])], prBody(pm, story));
+  const url = await forge.createChange({
+    head: v.branch,
+    base: cfg.mainBranch,
+    title: `[${v.id}] ${v.title}`,
+    body: prBody(pm, story),
+    draft: args.includes('--draft'),
+  });
   console.log(t.prCreated(url));
 }
 
 if (isMain(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (err) {
     console.error(`✗ ${(err.stderr || err.message).toString().trim()}`);
     process.exit(1);

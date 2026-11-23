@@ -1,6 +1,6 @@
 ---
 name: story-new
-description: Create a new user story in .pm/ and its GitHub issue. Use when the user asks for a feature, story, ticket or a non-trivial fix, or says "add this to the backlog". Also when new work shows up in the middle of another story.
+description: Create a new user story in .pm/ and its GitHub/GitLab issue. Use when the user asks for a feature, story, ticket or a non-trivial fix, or says "add this to the backlog". Also when new work shows up in the middle of another story.
 ---
 
 # /story-new — Create a story
@@ -20,6 +20,9 @@ If unclear, ask with concrete examples:
 npm run pm:next-id        # never guess the id: it checks remote branches and issues
 ```
 
+**Why**: with parallel sessions, "highest in the backlog + 1" has already produced two stories with the same id on
+the same day. The highest number can live on another branch or only in an issue.
+
 Create `.pm/<epic>/US-NNN-<kebab-slug>/README.md` from `.pm/templates/story.md`.
 
 ## 3. Fill in the README
@@ -37,6 +40,13 @@ The hook regenerates the backlog and runs the guard on save. If it blocks, fix w
 ```bash
 npm run pm:sync -- US-NNN   # in BACKLOG no issue is created; otherwise it is, and github_issue is written
 ```
+
+`github_issue` is the only source of the story → issue link. **Never fill it by hand or derive it from the id**:
+`US-NNN` is not `#NNN` (epic and hand-made issues shift the sequence), and writing to the wrong issue
+overwrites another story's status without any error.
+
+With the Kiwi module on, `pm:new` and `pm:advance` make sure the epic's plan exists in Kiwi TCMS; cases are
+loaded once the test case table has real rows.
 
 ## Report
 

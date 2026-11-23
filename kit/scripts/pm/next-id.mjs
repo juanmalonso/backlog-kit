@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { createGh } from '../lib/gh.mjs';
+import { createForge } from '../lib/forge.mjs';
 import { githubOff, project } from '../lib/project.mjs';
 
 const args = process.argv.slice(2);
@@ -60,8 +60,11 @@ for (const ref of refs) {
 
 if (!migration && !githubOff(args, cfg)) {
   try {
-    for (const i of createGh(pm.root, cfg).storyIssues())
-      if (i.story) note(Number(i.story.slice(cfg.storyPrefix.length + 1)), `issue #${i.number}`);
+    const issueRe = new RegExp(`^\\[${cfg.storyPrefix}-(\\d+)\\]`);
+    for (const i of await createForge(pm.root, cfg).issues()) {
+      const m = i.title.match(issueRe);
+      if (m) note(Number(m[1]), `issue #${i.number}`);
+    }
   } catch (err) {
     console.error(t.ghFailed(err.message.split('\n')[0]));
   }

@@ -7,7 +7,7 @@ description: Mostrar el estado del proyecto y sugerir qué hacer. Usar para "¿q
 
 1. Leé `.pm/backlog.md` (generado; si dudás, `npm run pm:backlog` primero).
 2. Si hay algo en EN_CURSO, leé el final de su "Log de progreso".
-3. Si el usuario pregunta por GitHub: `npm run pm:issue -- --verificar`.
+3. Si el usuario pregunta por GitHub/GitLab: `npm run pm:issue -- --verificar`.
 
 Respuesta corta y accionable:
 

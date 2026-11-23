@@ -7,7 +7,7 @@ description: Implementar varias historias en paralelo, una por worktree, en el o
 
 Una ola son las historias en LISTO sin dependencias pendientes que no se pisan entre sí.
 Cada una va en su worktree y su rama, con un implementador y después un revisor independiente.
-Nadie mergea: cada historia termina en un PR con CI en verde.
+Nadie mergea: cada historia termina en un PR/MR con CI en verde.
 
 ## 1. Elegir la ola
 
@@ -42,6 +42,6 @@ migraciones), asignáselos antes de lanzarlos.
 
 ## 4. Cerrar la ola
 
-- Resumí por historia: PR, estado del CI, lo que quedó abierto y las decisiones que necesitan al usuario.
+- Resumí por historia: PR/MR, estado del CI, lo que quedó abierto y las decisiones que necesitan al usuario.
 - El merge lo pide el usuario. Después, rebaseá las ramas que chocan en `.pm/backlog.md` (se regenera con `npm run pm:backlog`).
 - `git worktree remove` de las que ya se mergearon y `npm run pm:next` para la ola siguiente.

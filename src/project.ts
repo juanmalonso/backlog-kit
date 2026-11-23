@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
 import { createPm, section, toggleChecklist } from '../kit/scripts/lib/pm.mjs';
-import { createGh } from '../kit/scripts/lib/gh.mjs';
+import { changeName, ciState as forgeCi, createForge } from '../kit/scripts/lib/forge.mjs';
 import { ROLES } from '../kit/scripts/lib/config.mjs';
 import { blockedReason, dependencyIndex, storyOfBranch as ofBranch } from '../kit/scripts/lib/insights.mjs';
 import { claudeActivity } from './claude';
@@ -36,29 +36,22 @@ export interface PrInfo {
   ci: CiState;
 }
 
-/** Resume los checks de un PR en un semáforo. */
-export function ciState(rollup: any[] | null | undefined): CiState {
-  if (!rollup?.length) return 'none';
-  const v = rollup.map((c) => String(c.conclusion || c.state || c.status || '').toUpperCase());
-  if (v.some((x) => ['FAILURE', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE', 'ERROR'].includes(x))) return 'fail';
-  if (v.some((x) => ['', 'PENDING', 'QUEUED', 'IN_PROGRESS', 'EXPECTED', 'WAITING', 'REQUESTED'].includes(x))) return 'pending';
-  return 'pass';
+/** Resume los checks de un PR (lista de GitHub) o el estado de un pipeline (GitLab) en un semáforo. */
+export function ciState(x: any[] | string | null | undefined): CiState {
+  return forgeCi(x ?? []) as CiState;
 }
 
-// Los PR se piden a GitHub como mucho cada 60 s: el tablero se repinta seguido.
+// Los PR/MR se piden a GitHub o GitLab como mucho cada 60 s: el tablero se repinta seguido.
 const prCache = new Map<string, { at: number; data: Map<string, PrInfo> }>();
 export async function openPrs(root: string, force = false): Promise<Map<string, PrInfo>> {
   const hit = prCache.get(root);
   if (hit && !force && Date.now() - hit.at < 60_000) return hit.data;
-  const r = await run(root, 'gh', ['pr', 'list', '--state', 'open', '--limit', '200', '--json', 'number,headRefName,url,isDraft,statusCheckRollup']);
   const data = new Map<string, PrInfo>();
-  if (r.ok) {
-    try {
-      for (const p of JSON.parse(r.out))
-        data.set(p.headRefName, { number: p.number, url: p.url, draft: p.isDraft, ci: ciState(p.statusCheckRollup) });
-    } catch {
-      // salida inesperada de gh: sin datos de PR
-    }
+  try {
+    for (const p of await createForge(root, createPm(root).cfg).openChanges())
+      data.set(p.branch, { number: p.number, url: p.url, draft: p.draft, ci: p.ci as CiState });
+  } catch {
+    // sin gh, sin token o sin red: sin datos de PR/MR
   }
   prCache.set(root, { at: Date.now(), data });
   return data;
@@ -70,10 +63,11 @@ export async function boardData(root: string, { refreshPrs = false } = {}) {
   const { cfg } = pm;
   let repoUrl: string | null = null;
   try {
-    if (cfg.github?.enabled) repoUrl = `https://github.com/${createGh(root, cfg).repo()}`;
+    if (cfg.github?.enabled) repoUrl = createForge(root, cfg).webUrl();
   } catch {
-    // sin remote de GitHub: las tarjetas no enlazan el issue
+    // sin remote o sin URL de GitLab: las tarjetas no enlazan el issue
   }
+  const issueBase = repoUrl && `${repoUrl}${changeName(cfg) === 'MR' ? '/-/issues/' : '/issues/'}`;
   const raw = pm.loadStories();
   const views = raw.filter((s: any) => s.data).map((s: any) => pm.view(s));
   const idx = dependencyIndex(views, cfg);
@@ -109,6 +103,8 @@ export async function boardData(root: string, { refreshPrs = false } = {}) {
     stories,
     branch: await currentBranch(root),
     repoUrl,
+    issueBase,
+    changeName: changeName(cfg),
     github: Boolean(cfg.github?.enabled),
   };
 }

@@ -1,7 +1,7 @@
 // Cálculos sobre el backlog que comparten scripts, tablero y hooks de Claude: la historia de una
 // rama, qué la bloquea, qué conviene tomar después y cuánto tarda cada estado. Solo lectura.
 import { execFileSync } from 'node:child_process';
-import { section } from './pm.mjs';
+import { section, today as localToday } from './pm.mjs';
 
 export function currentBranch(root) {
   try {
@@ -108,7 +108,7 @@ function isoWeek(date) {
 }
 
 /** Días promedio en cada estado, historias cerradas por semana y antigüedad en el estado actual. */
-export function stats(pm, today = new Date().toISOString().slice(0, 10)) {
+export function stats(pm, today = localToday()) {
   const { cfg } = pm;
   const spent = Object.fromEntries(cfg.stateList.map((s) => [s, []]));
   const weekly = new Map();

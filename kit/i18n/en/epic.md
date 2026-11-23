@@ -11,4 +11,4 @@
 
 ## Stories
 
-Listed automatically in `.pm/backlog.md`.
+Listed automatically in `{{backlogPath}}`.

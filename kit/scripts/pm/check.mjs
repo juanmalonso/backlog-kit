@@ -25,7 +25,10 @@ function checkMigrations() {
   const seen = new Map();
   // Solo los archivos de migración (por defecto .sql): un README en la carpeta no es una migración.
   const ext = cfg.migrations.ext ?? '.sql';
-  for (const f of readdirSync(dir).filter((x) => x.endsWith(ext))) {
+  // `ledger`: regex con un grupo que captura el id que la migración registra (p. ej. el INSERT en la
+  // tabla de migraciones aplicadas). Tiene que ser el nombre del archivo: si no, el ledger miente.
+  const ledger = cfg.migrations.ledger ? new RegExp(cfg.migrations.ledger, 'i') : null;
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(ext)).sort()) {
     const m = f.match(re);
     if (!m) {
       errors.push(t.migrationName(f));
@@ -33,13 +36,22 @@ function checkMigrations() {
     }
     if (seen.has(m[1])) errors.push(t.migrationDup(f, m[1], seen.get(m[1])));
     seen.set(m[1], f);
+    if (ledger) {
+      const id = f.slice(0, -ext.length);
+      const got = readFileSync(path.join(dir, f), 'utf8').match(ledger)?.[1];
+      if (!got) errors.push(t.migrationNoLedger(f, id));
+      else if (got !== id) errors.push(t.migrationLedgerMismatch(f, got));
+    }
   }
-  [...seen.keys()]
-    .map(Number)
-    .sort((a, b) => a - b)
-    .forEach((n, i) => {
-      if (n !== i + 1) errors.push(t.migrationGap(String(i + 1).padStart(width, '0'), String(n).padStart(width, '0')));
-    });
+  // Un hueco se informa una vez (no cada migración que sigue). `knownGaps` acepta los históricos.
+  const known = new Set((cfg.migrations.knownGaps ?? []).map(Number));
+  const nums = [...seen.keys()].map(Number).sort((a, b) => a - b);
+  let prev = 0;
+  for (const n of nums) {
+    const missing = Array.from({ length: Math.max(0, n - prev - 1) }, (_, i) => prev + 1 + i);
+    if (missing.some((x) => !known.has(x))) errors.push(t.migrationGap(String(prev + 1).padStart(width, '0'), String(n).padStart(width, '0')));
+    prev = n;
+  }
 }
 
 function checkField(where, d, f) {
@@ -83,7 +95,7 @@ function checkPm() {
       errors.push(`${where}: ${t.badValue(K.estimate, d[K.estimate])}`);
     for (const f of cfg.fields) checkField(where, d, f);
     if (!d[K.title]) errors.push(`${where}: ${t.missing(K.title)}`);
-    if ([S.inProgress, S.review].includes(d[K.status]) && !d[K.branch])
+    if (cfg.requireBranch !== false && [S.inProgress, S.review].includes(d[K.status]) && !d[K.branch])
       errors.push(`${where}: ${t.noBranch(d[K.status])}`);
     if (byId.has(d[K.id])) errors.push(t.duplicate(d[K.id], where, byId.get(d[K.id])));
     byId.set(d[K.id], where);
@@ -97,7 +109,8 @@ function checkPm() {
 // Dependencias: los ids que nombra la sección de dependencias de cada README.
 function checkDependencies() {
   const NOT_READY = [S.backlog, S.refining, S.blocked, S.discarded];
-  const ADVANCED = [S.ready, S.inProgress, S.review, S.done];
+  // Una historia HECHA no se revisa: que dependiera de algo después descartado es historia, no un problema.
+  const ADVANCED = [S.ready, S.inProgress, S.review];
   const stageField = cfg.fields.find((f) => f.range);
   const views = pm.loadStories().filter((s) => s.data).map((s) => pm.view(s));
   const byId = new Map(views.map((v) => [v.id, v]));
@@ -139,7 +152,7 @@ if (!args.has('--solo-migraciones') && !args.has('--migrations-only')) {
   if (!errors.length) {
     const file = backlogFile(pm);
     const current = existsSync(file) ? readFileSync(file, 'utf8') : '';
-    if (current !== renderBacklog(pm, t)) errors.push(t.backlogStale);
+    if (current !== renderBacklog(pm, t)) errors.push(t.backlogStale(pm.rel(file)));
   }
 }
 

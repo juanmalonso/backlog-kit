@@ -1,0 +1,9 @@
+# Guard del backlog (backlog-kit): ids, estados, dependencias y .pm/backlog.md al día.
+# Sumalo al pipeline con `include: { local: .gitlab/ci/backlog.yml }` en .gitlab-ci.yml.
+backlog-guard:
+  image: node:22-alpine
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "{{mainBranch}}"
+  script:
+    - node scripts/pm/check.mjs

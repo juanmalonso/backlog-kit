@@ -5,14 +5,15 @@ Backlog de historias de usuario en markdown **dentro del repo**, con:
 - **Tablero kanban en VS Code**: arrastrás una tarjeta y cambia de estado, con las mismas reglas
   que en la terminal (transiciones válidas, criterios tildados para pasar a review, nota al bloquear).
 - **Init** que deja el proyecto listo: estructura `.pm/`, scripts `pm:*`, skills de Claude Code,
-  sección de workflow en `CLAUDE.md`, hooks, sincronización con GitHub Issues, protección de la rama
-  principal y CI.
+  sección de workflow en `CLAUDE.md`, hooks, sincronización con issues de **GitHub o GitLab**,
+  protección de la rama principal y CI.
 - **Configurable**: idioma (español o inglés), prefijo de los ids, rama protegida, comando de
   chequeo y campos extra por historia.
 - **Integrado con Claude Code**: la historia de la rama en contexto, subagentes que revisan criterios
   y refinan, servidor MCP del backlog, olas en paralelo y un plugin que se instala con `/plugin`.
 
-El estado de cada historia vive en un solo lugar: el frontmatter de su README. El tablero, el
+El estado de cada historia vive en un solo lugar: el frontmatter de su README (YAML plano; un
+comentario es ` # ` con espacio después del `#`, así que `#12` en un nombre es texto). El tablero, el
 backlog generado y los issues de GitHub son vistas.
 
 > English summary: a markdown backlog that lives in your repo, with a VS Code kanban board, an init
@@ -24,7 +25,7 @@ backlog generado y los issues de GitHub son vistas.
 Desde un release (`backlog-kit-<versión>.vsix`):
 
 ```bash
-code --install-extension backlog-kit-0.1.0.vsix
+code --install-extension backlog-kit-<versión>.vsix
 ```
 
 O desde el código:
@@ -32,10 +33,11 @@ O desde el código:
 ```bash
 git clone https://github.com/juanmalonso/backlog-kit && cd backlog-kit
 npm install && npm run package
-code --install-extension backlog-kit-0.1.0.vsix
+code --install-extension backlog-kit-*.vsix
 ```
 
-Requisitos: Node 20+ y git. Para GitHub, el CLI [`gh`](https://cli.github.com) autenticado.
+Requisitos: Node 20+ y git. Para GitHub, el CLI [`gh`](https://cli.github.com) autenticado. Para
+GitLab, un token con scope `api` (ver [GitLab](#gitlab)).
 
 ## Uso
 
@@ -74,7 +76,80 @@ También desde VS Code: **Backlog Kit: Actualizar scripts**.
 
 Opciones de `init`: `--lang es|en`, `--prefix HU`, `--main main`, `--check "npm test"`,
 `--fields phase,stage,requirements,spec`, `--epic "Nombre"`, `--no-skills`, `--no-github`,
-`--no-git-guard`, `--no-ci`, `--claude project|plugin`, `--no-mcp`, `--claude-action`, `--dry-run`.
+`--no-git-guard`, `--no-ci`, `--claude project|plugin`, `--no-mcp`, `--claude-action`, `--dry-run`,
+`--forge github|gitlab`, `--gitlab-url URL`, `--gitlab-project grupo/repo`, `--kiwi`, `--kiwi-product nombre`,
+`--kiwi-classification nombre`, `--wiki`.
+
+## Módulos
+
+### Kiwi TCMS (`--kiwi`)
+
+Cada fila de la tabla de casos de prueba del README (`| # | Escenario | Pasos | Resultado esperado |`, columnas
+leídas del encabezado) es un TestCase en Kiwi, con resumen `HU-012 #1 · <escenario>`, en un TestPlan y una
+Category por épica. `pm:advance` y `pm:new` sincronizan solos (si Kiwi no responde, avisan y siguen);
+`npm run pm:kiwi -- <ID> [--dry-run]` o `-- --todas` a mano.
+
+```json
+"kiwi": { "enabled": true, "classification": "Empresa", "product": "mi-proyecto", "version": "dev", "insecure": false }
+```
+
+Credenciales en `KIWI_URL` (el endpoint `…/json-rpc/`), `KIWI_USERNAME` y `KIWI_PASSWORD`, del entorno o de
+`.env.local`. `insecure: true` acepta un certificado self-signed.
+
+### Wiki (`--wiki`)
+
+`npm run pm:wiki [-- --dry-run]` publica `.pm/` en la wiki de GitLab (API) o de GitHub (el repo `.wiki.git`):
+las páginas de `wiki.pages` (por defecto, el backlog), `Decisiones de Arquitectura/Indice` y una por decisión,
+`Epicas/E01 <nombre>` e `Historias de Usuario/E01/HU-001 <nombre>`. Los títulos van sin acentos y cortados por
+palabra, porque el título es el slug y un slug que cambia recrea la página. Con `wiki.prune: true` borra lo que ya
+no corresponde (salvo `wiki.keep`), y no corre si algún README no se lee: su página se borraría.
+
+```json
+"wiki": { "enabled": true, "prune": true, "keep": ["home"], "pages": [{ "file": ".pm/glosario.md", "title": "Glosario" }] }
+```
+
+### Merge y adopción de issues
+
+- `npm run pm:merge -- <n> [--dry-run]`: mergea el PR/MR sólo si está abierto, apunta a la rama principal, no es
+  borrador, no tiene conflictos y el CI está en verde; antes lista los commits que entran.
+- `npm run pm:adopt -- --listar` muestra los issues abiertos que ninguna historia reclama; `pm:adopt -- <n> <ID>`
+  adopta uno (título, labels, milestone y un comentario). Lo usa la skill `/hu-adoptar-issue`, en GitHub y en GitLab.
+
+### Migraciones
+
+`migrations.ledger` (regex con un grupo) verifica que cada migración registre su propio nombre en el ledger, y
+`migrations.knownGaps` acepta huecos históricos en la numeración:
+
+```json
+"migrations": { "dir": "db/migrations", "pattern": "^(\\d{3})_[a-z0-9_]+\\.sql$", "digits": 3, "knownGaps": [30, 31],
+                "ledger": "INSERT\\s+INTO\\s+app_migration\\s*\\(id\\)\\s*VALUES\\s*\\(\\s*'([^']+)'" }
+```
+
+## GitLab
+
+Con `--forge gitlab` (o `"forge": { "provider": "gitlab" }` en `.pm/config.json`), issues, labels,
+milestones y MR van contra la API REST de GitLab (también self-hosted):
+
+```json
+{
+  "forge": { "provider": "gitlab", "url": "https://gitlab.example.com", "project": "grupo/repo" },
+  "labels": { "separator": "::", "epic": "folder" }
+}
+```
+
+- **Token**: `GITLAB_TOKEN` del entorno o de `.env.local` / `.env` (se puede cambiar con
+  `forge.tokenEnv`). Nunca se imprime. `url` puede salir de `GITLAB_URL` y `project` del remote `origin`.
+- **Labels con alcance**: en GitLab el separador por defecto es `::` (`estado::LISTO`), así un issue
+  tiene un solo estado. `labels.epic: "folder"` etiqueta la épica con la carpeta (`epica::E02-pagos`)
+  en vez del id.
+- `pm:pr` abre un **MR** (`Closes #<issue>` funciona igual), y el tablero muestra los MR abiertos con
+  el estado del último pipeline de su rama.
+- El CI del guard queda en `.gitlab/ci/backlog.yml`: sumalo con `include: { local: .gitlab/ci/backlog.yml }`.
+- La skill de adoptar issues usa `gh` y no se instala con GitLab.
+
+En GitHub y en GitLab, `pm:sync` **conserva los labels ajenos al kit** y **no pisa la descripción**
+de un issue que no generó (para eso, `--cuerpo` / `--body`). `pm:setup-github` crea lo que falta y no
+toca colores, descripciones ni títulos de milestone existentes salvo con `--actualizar` / `--update`.
 
 ## Qué instala
 
@@ -85,7 +160,7 @@ Opciones de `init`: `--lang es|en`, `--prefix HU`, `--main main`, `--check "npm 
 | Skills y CLAUDE.md | `.claude/skills/` (crear, refinar, avanzar, loguear, backlog, adoptar issue, ADR, hallazgo), bloque de workflow en `CLAUDE.md`, hook PostToolUse que corre el guard en `.claude/settings.json` |
 | GitHub Issues | `pm:sync`, `pm:issue`, `pm:setup-github`: un issue por historia, labels por estado, prioridad, tipo y épica, milestone por épica |
 | Protección de la rama | `scripts/hooks/git-guard.mjs` (PreToolUse de Claude Code) y `.githooks/pre-push` |
-| CI | `.github/workflows/backlog.yml` corre el guard en cada PR |
+| CI | `.github/workflows/backlog.yml` (o `.gitlab/ci/backlog.yml`) corre el guard en cada PR/MR |
 | Docs | `docs/decisiones/` y `docs/hallazgos/` (o `docs/decisions/` y `docs/findings/`) con índice y plantilla |
 
 El init es idempotente: los scripts se actualizan si cambiaron, lo que es del proyecto (config,
@@ -117,6 +192,10 @@ Lo que el init deja (o el plugin trae):
 y el init con `--claude plugin` (o "Plugin de Claude Code" en el asistente): el proyecto queda con
 `.pm/`, los scripts y la statusline; skills, subagentes, hooks y MCP los trae el plugin y se
 actualizan con él. Las skills quedan como `/backlog-kit:hu-nueva`.
+
+> **El guard de la rama es una baranda, no una barrera de seguridad.** Frena los errores de una sesión
+> de Claude (commit en `main`, push directo o forzado, también dentro de `bash -c` o `eval`), pero
+> alguien que quiera saltearlo puede. En GitLab, la protección real es *Protected branches*.
 
 ## Comandos
 
@@ -162,6 +241,14 @@ También se pueden pisar `states` (el nombre de cada uno de los 8 roles), `keys`
 frontmatter), `priorities`, `types`, `estimates`, `sections` (títulos de las secciones del README),
 `docs` y `migrations` (`{ "dir": "db/migrations", "ext": ".sql", "pattern": "^(\\d{4})_[a-z0-9_]+\\.sql$" }`
 para que el guard revise la numeración). Un campo con `"backlog": false` no aparece en `.pm/backlog.md`.
+
+Para adoptar backlog-kit en un proyecto que ya tenía su `.pm/`:
+
+- `"backlogFile": "tablero.md"`: el backlog generado va a `.pm/tablero.md` y no pisa un `backlog.md`
+  escrito a mano.
+- `"dependencies": { "mode": "first", "skip": "^(precede|no depende)" }`: de cada ítem de la sección de
+  dependencias toma solo el primer id (el resto suele ser contexto) y saltea las relaciones inversas.
+- `"requireBranch": false`: no exige el campo de rama en las historias en curso o en review.
 Los presets están en
 [`kit/scripts/lib/config.mjs`](kit/scripts/lib/config.mjs).
 

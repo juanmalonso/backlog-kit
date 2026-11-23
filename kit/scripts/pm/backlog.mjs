@@ -5,7 +5,8 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { isMain, project } from '../lib/project.mjs';
 
-export const backlogFile = (pm) => path.join(pm.PM, 'backlog.md');
+// `backlogFile` en el config (relativo a .pm/) permite convivir con un backlog.md escrito a mano.
+export const backlogFile = (pm) => path.join(pm.PM, pm.cfg.backlogFile ?? 'backlog.md');
 
 export function renderBacklog(pm, t) {
   const { cfg } = pm;
@@ -90,5 +91,5 @@ export function renderBacklog(pm, t) {
 if (isMain(import.meta.url)) {
   const pm = project();
   writeFileSync(backlogFile(pm), renderBacklog(pm, pm.t));
-  if (!process.argv.includes('--quiet')) console.log(pm.t.backlogDone);
+  if (!process.argv.includes('--quiet')) console.log(pm.t.backlogDone(pm.rel(backlogFile(pm))));
 }
