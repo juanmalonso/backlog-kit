@@ -28,7 +28,7 @@ function files() {
   for (const p of PLUGINS) {
     const base = `plugins/${p.name}`;
     // El plugin sirve a proyectos en GitHub y en GitLab: las skills nombran a los dos.
-    const ctx = { ...templateContext(buildConfig({ language: p.lang, github: true, gitGuard: true }), { claude: 'plugin', mcp: true }), forgeName: 'GitHub/GitLab', prName: 'PR/MR' };
+    const ctx = { ...templateContext(buildConfig({ language: p.lang, github: true, gitGuard: true }), { claude: 'plugin', mcp: true }), forgeName: 'GitHub/GitLab', prName: 'PR/MR', kiwi: true, wiki: true };
     const tpl = (name) => render(readFileSync(path.join(KIT, 'i18n', p.lang, name), 'utf8'), ctx);
     put(
       `${base}/.claude-plugin/plugin.json`,

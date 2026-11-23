@@ -53,7 +53,7 @@ try {
   const text = readFileSync(path.join(tplDir, tplName), 'utf8')
     .replaceAll(`${cfg.storyPrefix}-NNN`, id)
     .replaceAll('YYYY-MM-DD', today())
-    .replace(/^(# \S+ — ).*$/m, `$1${title}`)
+    .replace(/^(# \S+ — ).*$/m, (_, head) => `${head}${title}`)
     .replace(new RegExp(`\\(${cfg.states.refining}\\)\\s*$`, 'm'), `(${status})`);
   mkdirSync(folder, { recursive: true });
   writeFileSync(file, text);
@@ -62,7 +62,16 @@ try {
   console.log(t.newCreated(id, pm.rel(file)));
   if (!githubOff(args, cfg) && status !== cfg.states.backlog) {
     const { syncOne } = await import('./sync-issue.mjs');
-    syncOne(pm, id);
+    await syncOne(pm, id);
+  }
+  // Kiwi: asegura el plan de la épica desde el día uno. No frena la creación si no responde.
+  if (cfg.kiwi?.enabled && !args.includes('--sin-kiwi') && !args.includes('--no-kiwi')) {
+    try {
+      const { syncKiwi } = await import('../lib/kiwi.mjs');
+      await syncKiwi(pm, id);
+    } catch (err) {
+      console.error(`⚠ ${err.message}`);
+    }
   }
 } catch (err) {
   console.error(`✗ ${err.message}`);

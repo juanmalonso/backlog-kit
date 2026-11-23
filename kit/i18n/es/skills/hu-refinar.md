@@ -24,8 +24,17 @@ trasciende la historia → `/doc-adr`.
 - **{{sections.criteria}}** binarios, en Dado/cuando/entonces. Incluir lo que **no** debe pasar.
 - **{{sections.plan}}** en orden lógico, nombrando archivos reales.
 - **Tareas**, incluido `{{checkCommand}}` limpio.
-- **{{sections.tests}}**: filas reales{{#github}}; se copian al issue como checklist de QA manual{{/github}}.
+- **{{sections.tests}}**: filas reales en una tabla `| # | Escenario | Pasos | Resultado esperado |`{{#github}};
+  se copian al issue como checklist de QA manual{{/github}}{{#kiwi}}; cada fila es un caso en Kiwi TCMS (las columnas se
+  leen del encabezado, así que conservá esos nombres){{/kiwi}}.
 - **{{sections.dependencies}}**: historias que tienen que estar antes.
+
+Según el tipo de historia:
+
+- **Migración de base**: verificación después de aplicarla (conteos, la función o vista que cambió) y rollback si aplica.
+- **UI**: un criterio de accesibilidad básica y de pantallas chicas, y el smoke test que lo verifica.
+- **IA / integración externa**: qué pasa cuando falla o devuelve algo inválido (falla limpia, visible).
+- **Bloqueada**: el bloqueador y de quién depende; no pasa a {{S.ready}} hasta destrabarse.
 
 Si quedó XL, proponé partirla (`/hu-nueva` por cada parte) antes de pasar a {{S.ready}}.
 

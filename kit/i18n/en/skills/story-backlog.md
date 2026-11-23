@@ -5,7 +5,7 @@ description: Show project status and suggest what to do next. Use for "what's th
 
 # /story-backlog — Status and next step
 
-1. Read `.pm/backlog.md` (generated; if in doubt, run `npm run pm:backlog` first).
+1. Read `{{backlogPath}}` (generated; if in doubt, run `npm run pm:backlog` first).
 2. If something is {{S.inProgress}}, read the end of its "{{sections.log}}".
 {{#github}}3. If the user asks about {{forgeName}}: `npm run pm:issue -- --verify`.
 {{/github}}

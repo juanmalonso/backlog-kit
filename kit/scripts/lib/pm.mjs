@@ -16,6 +16,8 @@ export function parseFrontmatter(text) {
     if (!raw.replace(COMMENT, '').trim()) continue;
     const kv = raw.match(/^([a-z_]+):[ \t]*(.*)$/);
     if (!kv) throw new Error(`Línea de frontmatter no soportada / unsupported frontmatter line: "${raw}"`);
+    // Una clave repetida es ambigua: unas herramientas leen la primera y otras la última.
+    if (kv[1] in data) throw new Error(`Clave repetida en el frontmatter / duplicated frontmatter key: "${kv[1]}"`);
     data[kv[1]] = parseValue(kv[2]);
   }
   return { data, body: text.replace(/\r\n/g, '\n').slice(m[0].length) };
@@ -120,6 +122,29 @@ function dirs(p) {
 }
 
 /** Fecha local AAAA-MM-DD. No UTC: en UTC-3, después de las 21 h el log quedaba con fecha de mañana. */
+/**
+ * Ids de la sección de dependencias. Por defecto, todos los que aparecen. Con
+ * `dependencies: { mode: "first" }`, solo el primero de cada ítem de lista (la historia de la que se
+ * depende; el resto suele ser contexto), y `dependencies.skip` (regex, sin distinguir mayúsculas)
+ * descarta los ítems que empiezan con una relación inversa ("Precede a HU-x", "No depende de HU-y").
+ */
+export function dependencyIds(text, cfg) {
+  const re = new RegExp(cfg.idPattern, 'g');
+  const mode = cfg.dependencies?.mode ?? 'all';
+  const skip = cfg.dependencies?.skip ? new RegExp(cfg.dependencies.skip, 'i') : null;
+  if (mode === 'all' && !skip) return [...new Set(text.match(re) ?? [])];
+  const out = [];
+  for (const line of text.split('\n')) {
+    const item = line.match(/^\s*(?:[-*+]|\d+\.)\s+(.*)$/);
+    if (!item) continue;
+    const content = item[1].replace(/^[*_`\s]+/, '');
+    if (skip?.test(content)) continue;
+    const ids = content.match(re) ?? [];
+    out.push(...(mode === 'first' ? ids.slice(0, 1) : ids));
+  }
+  return [...new Set(out)];
+}
+
 export function today(d = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
@@ -190,7 +215,7 @@ export function createPm(root, cfg = loadConfig(root)) {
   function view(story) {
     const d = story.data ?? {};
     const criteria = checklist(story.body, cfg.sections.criteria);
-    const deps = [...new Set(section(story.body, cfg.sections.dependencies).match(new RegExp(cfg.idPattern, 'g')) ?? [])];
+    const deps = dependencyIds(section(story.body, cfg.sections.dependencies), cfg);
     return {
       id: d[K.id] ?? story.folder,
       epic: story.epic.id,

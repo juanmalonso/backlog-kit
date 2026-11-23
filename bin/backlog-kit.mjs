@@ -8,6 +8,7 @@
 //                        [--no-skills] [--no-github] [--no-git-guard] [--no-ci] [--dry-run] [--force]
 //                        [--claude project|plugin] [--no-mcp] [--claude-action]
 //                        [--forge github|gitlab] [--gitlab-url URL] [--gitlab-project grupo/repo]
+//                        [--kiwi] [--kiwi-product nombre] [--kiwi-classification nombre] [--wiki]
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyInit, planInit, planUpgrade } from '../src/init/scaffold.mjs';
@@ -48,6 +49,10 @@ try {
     forge: value('--forge') === 'gitlab' ? 'gitlab' : 'github',
     gitlabUrl: value('--gitlab-url'),
     gitlabProject: value('--gitlab-project'),
+    kiwi: has('--kiwi'),
+    kiwiProduct: value('--kiwi-product'),
+    kiwiClassification: value('--kiwi-classification'),
+    wiki: has('--wiki'),
   },
   KIT,
 );

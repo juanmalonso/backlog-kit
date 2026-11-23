@@ -20,6 +20,9 @@ Si no está claro, preguntá con ejemplos concretos:
 npm run pm:next-id        # nunca deduzcas el id: mira ramas remotas{{#github}} e issues{{/github}}
 ```
 
+**Por qué**: con varias sesiones en paralelo, "el más alto del backlog + 1" ya dio dos historias con el
+mismo id el mismo día. El número más alto puede estar en otra rama{{#github}} o sólo en un issue{{/github}}.
+
 Creá `.pm/<épica>/{{storyPrefix}}-NNN-<slug-kebab-sin-acentos>/README.md` copiando `.pm/templates/story.md`.
 
 ## 3. Completar el README
@@ -37,7 +40,14 @@ El hook regenera el backlog y corre el guard al guardar. Si corta, arreglá lo q
 ```bash
 npm run pm:sync -- {{storyPrefix}}-NNN   # en {{S.backlog}} no crea issue; si no, sí, y escribe {{K.issue}}
 ```
+
+`{{K.issue}}` es la única fuente de la relación historia → issue. **Nunca lo completes a mano ni lo
+deduzcas del id**: `{{storyPrefix}}-NNN` no es `#NNN` (los issues de épica y los manuales corren la
+secuencia), y escribirle al issue equivocado le pisa el estado a otra historia sin ningún error.
 {{/github}}
+{{#kiwi}}Con el módulo Kiwi activo, `pm:new` y `pm:advance` aseguran el plan de la épica en Kiwi TCMS; los casos
+se cargan cuando la tabla de casos de prueba tiene filas reales.
+{{/kiwi}}
 ## Reportar
 
 Id, ruta del README{{#github}}, link del issue{{/github}} y las preguntas pendientes para refinarla.

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { expect } from './expect.mjs';
-import { toggleChecklist, checklist, parseFrontmatter, setFields } from '../kit/scripts/lib/pm.mjs';
+import { toggleChecklist, checklist, dependencyIds, parseFrontmatter, setFields } from '../kit/scripts/lib/pm.mjs';
 import { blockedReason, dependencyIndex } from '../kit/scripts/lib/insights.mjs';
 import { resolveConfig } from '../kit/scripts/lib/config.mjs';
 
@@ -57,11 +57,28 @@ describe('reemplazos y comentarios', () => {
     expect(data).toEqual({ a: 'valor', b: 'con # adentro', c: null, d: ['x', 'y'], e: 3, f: 'Fix «React #441» y #12' });
   });
 
+  it('una clave repetida es error (una herramienta lee la primera y otra la última)', () => {
+    let error;
+    try {
+      parseFrontmatter('---\ngitlab_issue: 165\nestado: HECHO\ngitlab_issue: pendiente\n---\n');
+    } catch (err) {
+      error = err;
+    }
+    expect(error.message).toMatch(/Clave repetida.*gitlab_issue/);
+  });
+
   it('setFields respeta "#12" en el valor y el comentario de la línea', () => {
     const file = tmp('---\nnombre: Fix «React #441»\ntipo: feature   # feature | fix\n---\n');
     setFields(file, { tipo: 'fix', nombre: 'Fix «React #441» bis' });
     expect(readFileSync(file, 'utf8')).toBe('---\nnombre: Fix «React #441» bis\ntipo: fix       # feature | fix\n---\n');
   });
+});
+
+describe('dependencyIds', () => {
+  const text = '- **HU-154** (HECHO) — como HU-149, pero propio\n- HU-158 — red de tests\n- **Precede a HU-157** y a **HU-159**\n- No depende de HU-200\n\nTexto suelto con HU-300';
+  it('por defecto, todos los ids', () => expect(dependencyIds(text, cfg)).toEqual(['HU-154', 'HU-149', 'HU-158', 'HU-157', 'HU-159', 'HU-200', 'HU-300']));
+  it('mode first + skip: el primero de cada ítem, sin las relaciones inversas', () =>
+    expect(dependencyIds(text, resolveConfig({ language: 'es', dependencies: { mode: 'first', skip: '^(precede|no depende)' } }))).toEqual(['HU-154', 'HU-158']));
 });
 
 describe('dependencyIndex', () => {

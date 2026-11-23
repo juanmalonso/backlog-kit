@@ -28,7 +28,18 @@ El tablero de VS Code hace lo mismo al arrastrar una tarjeta.
 npm run pm:pr        # push + PR/MR con historia, criterios, último log y Closes #<issue>
 ```
 
-El número del issue sale de `npm run pm:issue -- HU-NNN`, nunca del id.
+El número del issue sale de `npm run pm:issue -- HU-NNN`, nunca del id. Mergear: `npm run pm:merge -- <n>`
+(sólo con CI en verde y sin conflictos; `--dry-run` muestra los commits que entran).
+
+## Si el issue no cierra
+
+`pm:advance` y `pm:issue` verifican que el issue de `github_issue` tenga el título de esta historia. Si fallan,
+**arreglá el dato** (`npm run pm:issue -- --verificar` las audita todas): el modo degradado es escribirle a la
+historia de otro. No cambies labels a mano: el script manda la lista completa en un solo pedido, porque agregar y
+quitar labels en el mismo pedido se pisa y la API responde 200 igual.
+
+Kiwi: cada transición sincroniza los casos de prueba con Kiwi TCMS. Si Kiwi no responde, avisa y el cambio de estado
+sigue; re-sincronizá después con `npm run pm:kiwi -- HU-NNN`.
 
 ## Reportar
 

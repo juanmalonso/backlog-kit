@@ -24,8 +24,17 @@ trasciende la historia → `/doc-adr`.
 - **Criterios de aceptación** binarios, en Dado/cuando/entonces. Incluir lo que **no** debe pasar.
 - **Plan de implementación** en orden lógico, nombrando archivos reales.
 - **Tareas**, incluido `npm run pm:check` limpio.
-- **Casos de prueba**: filas reales; se copian al issue como checklist de QA manual.
+- **Casos de prueba**: filas reales en una tabla `| # | Escenario | Pasos | Resultado esperado |`;
+  se copian al issue como checklist de QA manual; cada fila es un caso en Kiwi TCMS (las columnas se
+  leen del encabezado, así que conservá esos nombres).
 - **Dependencias**: historias que tienen que estar antes.
+
+Según el tipo de historia:
+
+- **Migración de base**: verificación después de aplicarla (conteos, la función o vista que cambió) y rollback si aplica.
+- **UI**: un criterio de accesibilidad básica y de pantallas chicas, y el smoke test que lo verifica.
+- **IA / integración externa**: qué pasa cuando falla o devuelve algo inválido (falla limpia, visible).
+- **Bloqueada**: el bloqueador y de quién depende; no pasa a LISTO hasta destrabarse.
 
 Si quedó XL, proponé partirla (`/hu-nueva` por cada parte) antes de pasar a LISTO.
 

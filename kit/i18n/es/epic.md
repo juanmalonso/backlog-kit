@@ -11,4 +11,4 @@
 
 ## Historias
 
-Se listan solas en `.pm/backlog.md`.
+Se listan solas en `{{backlogPath}}`.

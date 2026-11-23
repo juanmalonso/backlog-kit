@@ -43,5 +43,5 @@ migraciones), asignáselos antes de lanzarlos.
 ## 4. Cerrar la ola
 
 - Resumí por historia: {{prName}}, estado{{#github}} del CI{{/github}}, lo que quedó abierto y las decisiones que necesitan al usuario.
-- El merge lo pide el usuario. Después, rebaseá las ramas que chocan en `.pm/backlog.md` (se regenera con `npm run pm:backlog`).
+- El merge lo pide el usuario. Después, rebaseá las ramas que chocan en `{{backlogPath}}` (se regenera con `npm run pm:backlog`).
 - `git worktree remove` de las que ya se mergearon y `npm run pm:next` para la ola siguiente.

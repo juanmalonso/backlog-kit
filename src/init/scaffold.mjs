@@ -33,12 +33,18 @@ export const DEFAULTS = {
   forge: 'github',
   gitlabUrl: undefined, // si falta, GITLAB_URL del entorno o de .env.local
   gitlabProject: undefined, // si falta, sale del remote origin
+  // Módulos opcionales: casos de prueba en Kiwi TCMS y .pm/ publicado en la wiki del forge.
+  kiwi: false,
+  kiwiProduct: undefined,
+  kiwiClassification: undefined,
+  wiki: false,
 };
 
 export const SKILLS = {
-  es: ['hu-nueva', 'hu-refinar', 'hu-avanzar', 'hu-log', 'hu-backlog', 'hu-adoptar-issue', 'hu-ola', 'doc-adr', 'doc-hallazgo'],
-  en: ['story-new', 'story-refine', 'story-advance', 'story-log', 'story-backlog', 'story-adopt-issue', 'story-wave', 'doc-adr', 'doc-finding'],
+  es: ['hu-nueva', 'hu-refinar', 'hu-avanzar', 'hu-log', 'hu-backlog', 'hu-adoptar-issue', 'hu-ola', 'doc-adr', 'doc-hallazgo', 'doc-wiki'],
+  en: ['story-new', 'story-refine', 'story-advance', 'story-log', 'story-backlog', 'story-adopt-issue', 'story-wave', 'doc-adr', 'doc-finding', 'doc-wiki'],
 };
+export const WIKI_ONLY_SKILLS = ['doc-wiki'];
 export const AGENTS = { es: ['revisor-criterios', 'refinador'], en: ['criteria-reviewer', 'refiner'] };
 export const GITHUB_ONLY_SKILLS = ['hu-adoptar-issue', 'story-adopt-issue'];
 
@@ -58,7 +64,12 @@ const GITHUB_SCRIPTS = {
   'pm:issue': 'node scripts/pm/issue.mjs',
   'pm:setup-github': 'node scripts/pm/setup-github.mjs',
   'pm:pr': 'node scripts/pm/pr.mjs',
+  'pm:merge': 'node scripts/pm/merge.mjs',
+  'pm:adopt': 'node scripts/pm/adopt.mjs',
+  'pm:setup-forge': 'node scripts/pm/setup-github.mjs',
 };
+const KIWI_SCRIPTS = { 'pm:kiwi': 'node scripts/pm/kiwi.mjs' };
+const WIKI_SCRIPTS = { 'pm:wiki': 'node scripts/pm/wiki.mjs' };
 
 /** Config que se escribe en .pm/config.json: solo lo que difiere del preset, más lo elegido. */
 export function buildConfig(opts) {
@@ -77,6 +88,10 @@ export function buildConfig(opts) {
     ...(o.forge === 'gitlab'
       ? { forge: { provider: 'gitlab', ...(o.gitlabUrl ? { url: o.gitlabUrl } : {}), ...(o.gitlabProject ? { project: o.gitlabProject } : {}) } }
       : {}),
+    ...(o.kiwi
+      ? { kiwi: { enabled: true, ...(o.kiwiProduct ? { product: o.kiwiProduct } : {}), ...(o.kiwiClassification ? { classification: o.kiwiClassification } : {}) } }
+      : {}),
+    ...(o.wiki ? { wiki: { enabled: true } } : {}),
   };
 }
 
@@ -122,6 +137,9 @@ export function templateContext(cfgRaw, opts = {}) {
     gitlab: cfg.forge?.provider === 'gitlab',
     forgeName: cfg.forge?.provider === 'gitlab' ? 'GitLab' : 'GitHub',
     prName: cfg.forge?.provider === 'gitlab' ? 'MR' : 'PR',
+    kiwi: Boolean(cfg.kiwi?.enabled),
+    wiki: Boolean(cfg.wiki?.enabled),
+    backlogPath: `.pm/${cfg.backlogFile ?? 'backlog.md'}`,
     gitGuard: cfg.gitGuard.enabled,
     plugin: opts.claude === 'plugin',
     project: opts.claude !== 'plugin',
@@ -154,7 +172,9 @@ export function planInit(root, opts, kitDir) {
   // Scripts y hooks: siempre (kit).
   for (const file of walk(path.join(kitDir, 'scripts'))) {
     const rel = path.relative(kitDir, file).split(path.sep).join('/');
-    if (!o.github && /scripts\/pm\/(sync-issue|issue|setup-github|pr)\.mjs$/.test(rel)) continue;
+    if (!o.github && /scripts\/pm\/(sync-issue|issue|setup-github|pr|merge|adopt|wiki)\.mjs$/.test(rel)) continue;
+    if (!o.kiwi && /scripts\/(pm|lib)\/kiwi\.mjs$/.test(rel)) continue;
+    if (!o.wiki && /scripts\/pm\/wiki\.mjs$/.test(rel)) continue;
     if (!o.gitGuard && /scripts\/(hooks\/(git-guard|pre-push)|lib\/git-rules)\.mjs$/.test(rel)) continue;
     add(rel, readFileSync(file, 'utf8'), 'kit');
   }
@@ -178,8 +198,8 @@ export function planInit(root, opts, kitDir) {
   if (o.skills) {
     if (o.claude !== 'plugin') {
       for (const name of SKILLS[lang]) {
-        // Adoptar issues usa el CLI gh: en GitLab, por ahora, no se instala.
-        if ((!o.github || gitlab) && GITHUB_ONLY_SKILLS.includes(name)) continue;
+        if (!o.github && GITHUB_ONLY_SKILLS.includes(name)) continue;
+        if (!o.wiki && WIKI_ONLY_SKILLS.includes(name)) continue;
         add(`.claude/skills/${name}/SKILL.md`, tpl(`skills/${name}.md`), 'seed');
       }
       for (const name of AGENTS[lang]) add(`.claude/agents/${name}.md`, tpl(`agents/${name}.md`), 'seed');
@@ -246,7 +266,7 @@ export function mergePackage(current, o, name) {
   const pkg = current ? JSON.parse(current) : { name: slug(name) || 'project', private: true };
   const before = JSON.stringify(pkg);
   pkg.scripts ??= {};
-  const wanted = { ...SCRIPTS, ...(o.github ? GITHUB_SCRIPTS : {}) };
+  const wanted = { ...SCRIPTS, ...(o.github ? GITHUB_SCRIPTS : {}), ...(o.kiwi ? KIWI_SCRIPTS : {}), ...(o.wiki && o.github ? WIKI_SCRIPTS : {}) };
   // Alias en español del comando más usado, como en el proyecto de origen.
   if (o.language !== 'en') wanted['pm:avanzar'] = 'node scripts/pm/advance.mjs';
   for (const [k, v] of Object.entries(wanted)) pkg.scripts[k] ??= v;
@@ -273,7 +293,8 @@ export function mergeSettings(current, o) {
     'Bash(npm run pm:next:*)',
     'Bash(npm run pm:stats:*)',
     ...(o.claude !== 'plugin' && o.mcp ? ['mcp__backlog__story_list', 'mcp__backlog__story_get', 'mcp__backlog__story_next', 'mcp__backlog__backlog_stats'] : []),
-    ...(o.github ? ['Bash(npm run pm:issue:*)'] : []),
+    ...(o.github ? ['Bash(npm run pm:issue:*)', 'Bash(npm run pm:adopt -- --listar:*)'] : []),
+    ...(o.kiwi ? ['Bash(npm run pm:kiwi:*)'] : []),
     ...(o.github && o.forge !== 'gitlab' ? ['Bash(gh issue view:*)', 'Bash(gh issue list:*)', 'Bash(gh pr view:*)', 'Bash(gh pr checks:*)'] : []),
   ];
   for (const a of allow) if (!s.permissions.allow.includes(a)) s.permissions.allow.push(a);
@@ -335,6 +356,8 @@ export function planUpgrade(root, kitDir) {
       github: cfg.github?.enabled !== false,
       gitGuard: cfg.gitGuard?.enabled !== false,
       forge: cfg.forge?.provider === 'gitlab' ? 'gitlab' : 'github',
+      kiwi: Boolean(cfg.kiwi?.enabled),
+      wiki: Boolean(cfg.wiki?.enabled),
       skills: false,
       ci: false,
     },

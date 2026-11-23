@@ -43,5 +43,5 @@ missing, it goes back to the implementer with the list. If two subagents will re
 ## 4. Close the wave
 
 - Summarize per story: {{prName}}, status{{#github}} of CI{{/github}}, what is still open and decisions the user must make.
-- The user asks for the merge. Then rebase branches that clash on `.pm/backlog.md` (regenerate with `npm run pm:backlog`).
+- The user asks for the merge. Then rebase branches that clash on `{{backlogPath}}` (regenerate with `npm run pm:backlog`).
 - `git worktree remove` the merged ones and `npm run pm:next` for the next wave.

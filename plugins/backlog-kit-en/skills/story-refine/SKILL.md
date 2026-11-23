@@ -24,8 +24,17 @@ beyond the story → `/doc-adr`.
 - **Acceptance criteria**, binary, as Given/when/then. Include what must **not** happen.
 - **Implementation plan** in logical order, naming real files.
 - **Tasks**, including `npm run pm:check` clean.
-- **Test cases**: real rows; they are copied to the issue as a manual QA checklist.
+- **Test cases**: real rows in a `| # | Scenario | Steps | Expected result |` table; they are copied
+  to the issue as a manual QA checklist; each row is a Kiwi TCMS case (columns are read from the header,
+  so keep those names).
 - **Dependencies**: stories that must come first.
+
+Depending on the kind of story:
+
+- **Database migration**: a check after applying it (counts, the function or view that changed) and rollback if any.
+- **UI**: a basic accessibility and small-screen criterion, and the smoke test that checks it.
+- **AI / external integration**: what happens when it fails or returns something invalid (clean, visible failure).
+- **Blocked**: the blocker and who it depends on; it does not move to READY until unblocked.
 
 If it ended up XL, propose splitting it (`/story-new` for each part) before READY.
 

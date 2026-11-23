@@ -58,6 +58,15 @@ try {
       await forge.comment(updated[K.issue], `${t.stateComment(from, target)}\n\n${t.log[role]}${note ? `\n\n${note}` : ''}`);
     }
   }
+  // Kiwi: no frena el cambio de estado si no responde; avisa y sigue.
+  if (cfg.kiwi?.enabled && !flag('--sin-kiwi', '--no-kiwi')) {
+    try {
+      const { syncKiwi } = await import('../lib/kiwi.mjs');
+      await syncKiwi(pm, sid);
+    } catch (err) {
+      console.error(`⚠ ${err.message}`);
+    }
+  }
   if (fields[K.branch]) console.log(t.branchHint(fields[K.branch], cfg.mainBranch));
 } catch (err) {
   console.error(`✗ ${err.message}`);

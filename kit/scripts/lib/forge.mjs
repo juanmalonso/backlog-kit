@@ -8,7 +8,8 @@
 // Sin "forge", es GitHub. `url` y `project` se pueden omitir: salen de GITLAB_URL y del remote origin.
 // El token sale del entorno o de `.env.local` / `.env` del proyecto, y nunca se imprime.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { createGh } from './gh.mjs';
 
@@ -64,6 +65,45 @@ export function fromEnvFiles(root, key) {
 export function projectFromRemote(url) {
   const m = url.trim().match(/^(?:[a-z+]+:\/\/)?(?:[^@/]+@)?[^/:]+(?::\d+)?[:/](.+?)(?:\.git)?\/?$/i);
   return m ? m[1].replace(/^\/+/, '') : null;
+}
+
+/** Título de página de wiki → slug de GitLab (espacios a guiones; la barra es carpeta). */
+export const wikiSlug = (title) => title.replace(/ /g, '-');
+
+/**
+ * Sincroniza páginas `{ title, content }` con un directorio de wiki en disco (el clon git de la wiki
+ * de GitHub): escribe las que cambiaron y, con `prune`, borra las que sobran. Devuelve el reporte.
+ */
+function syncWikiDir(dir, pages, { prune = false, keep = [] } = {}) {
+  const file = (title) => path.join(dir, `${wikiSlug(title)}.md`);
+  const report = { created: [], updated: [], deleted: [], unchanged: [] };
+  const wanted = new Set(pages.map((p) => path.resolve(file(p.title))));
+  for (const p of pages) {
+    const f = file(p.title);
+    const prev = existsSync(f) ? readFileSync(f, 'utf8') : null;
+    if (prev === p.content) report.unchanged.push(p.title);
+    else {
+      mkdirSync(path.dirname(f), { recursive: true });
+      writeFileSync(f, p.content);
+      (prev === null ? report.created : report.updated).push(p.title);
+    }
+  }
+  if (prune) {
+    const walk = (d) =>
+      readdirSync(d).flatMap((n) => {
+        const full = path.join(d, n);
+        if (n === '.git') return [];
+        return statSync(full).isDirectory() ? walk(full) : [full];
+      });
+    for (const f of walk(dir).filter((f) => f.endsWith('.md'))) {
+      const rel = path.relative(dir, f).replace(/\.md$/, '');
+      if (!wanted.has(path.resolve(f)) && !keep.some((k) => k.toLowerCase() === rel.toLowerCase())) {
+        rmSync(f);
+        report.deleted.push(rel);
+      }
+    }
+  }
+  return report;
 }
 
 export function createForge(root, cfg) {
@@ -140,6 +180,45 @@ function createGithub(root, cfg) {
     async createChange({ head, base, title, body, draft }) {
       return sh(['pr', 'create', '--base', base, '--head', head, '--title', title, '--body-file', '-', ...(draft ? ['--draft'] : [])], body);
     },
+    async mergeChange(n, { dry = false } = {}) {
+      const pr = JSON.parse(sh(['pr', 'view', String(n), '--json', 'number,title,headRefName,baseRefName,state,isDraft,mergeable,statusCheckRollup,commits,headRefOid']));
+      const reasons = [];
+      if (pr.state !== 'OPEN') reasons.push(`state=${pr.state}`);
+      if (pr.baseRefName !== cfg.mainBranch) reasons.push(`base=${pr.baseRefName}`);
+      if (pr.isDraft) reasons.push('draft');
+      if (pr.mergeable === 'CONFLICTING') reasons.push('conflicts');
+      const ci = ciState(pr.statusCheckRollup);
+      if (ci !== 'pass') reasons.push(`ci=${ci}`);
+      const result = {
+        number: pr.number,
+        title: pr.title,
+        source: pr.headRefName,
+        target: pr.baseRefName,
+        commits: (pr.commits ?? []).map((c) => ({ id: String(c.oid).slice(0, 8), title: c.messageHeadline })),
+        reasons,
+        merged: false,
+      };
+      if (reasons.length || dry) return result;
+      sh(['pr', 'merge', String(n), '--merge', '--match-head-commit', pr.headRefOid]);
+      return { ...result, merged: true };
+    },
+    async syncWiki(pages, { prune = false, keep = ['Home'], dry = false } = {}) {
+      const dir = mkdtempSync(path.join(os.tmpdir(), 'backlog-kit-wiki-'));
+      try {
+        const git = (...a) => execFileSync('git', ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', ...a], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        git('clone', '-q', `https://github.com/${gh.repo()}.wiki.git`, '.');
+        const report = syncWikiDir(dir, pages, { prune, keep });
+        if (!dry && (report.created.length || report.updated.length || report.deleted.length)) {
+          git('add', '-A');
+          git('-c', 'user.name=backlog-kit', '-c', 'user.email=backlog-kit@localhost', 'commit', '-q', '-m', 'backlog-kit: wiki desde .pm/');
+          git('push', '-q');
+        }
+        return report;
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+    wikiUrl: () => `https://github.com/${gh.repo()}/wiki`,
     async openChanges() {
       const out = sh(['pr', 'list', '--state', 'open', '--limit', '200', '--json', 'number,headRefName,url,isDraft,statusCheckRollup']);
       return JSON.parse(out).map((p) => ({ number: p.number, branch: p.headRefName, url: p.url, draft: p.isDraft, ci: ciState(p.statusCheckRollup) }));
@@ -267,6 +346,61 @@ function createGitlab(root, cfg) {
       });
       return `${web()}/-/merge_requests/${mr.iid}`;
     },
+    async mergeChange(n, { dry = false } = {}) {
+      let mr = await req('GET', `/merge_requests/${n}`);
+      // GitLab calcula si se puede mergear en segundo plano: se espera a que termine.
+      for (let i = 0; i < 20 && ['checking', 'unchecked', 'preparing', 'approvals_syncing'].includes(mr.detailed_merge_status); i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        mr = await req('GET', `/merge_requests/${n}`);
+      }
+      const reasons = [];
+      if (mr.state !== 'opened') reasons.push(`state=${mr.state}`);
+      if (mr.target_branch !== cfg.mainBranch) reasons.push(`base=${mr.target_branch}`);
+      if (mr.draft || mr.work_in_progress) reasons.push('draft');
+      if (mr.has_conflicts) reasons.push('conflicts');
+      if (mr.detailed_merge_status && mr.detailed_merge_status !== 'mergeable') reasons.push(`merge_status=${mr.detailed_merge_status}`);
+      if (mr.head_pipeline && ciState(mr.head_pipeline.status) !== 'pass') reasons.push(`ci=${mr.head_pipeline.status}`);
+      const commits = await list(`/merge_requests/${n}/commits`);
+      const result = {
+        number: mr.iid,
+        title: mr.title,
+        source: mr.source_branch,
+        target: mr.target_branch,
+        commits: commits.map((c) => ({ id: c.short_id, title: c.title })),
+        reasons,
+        merged: false,
+      };
+      if (reasons.length || dry) return result;
+      await req('PUT', `/merge_requests/${n}/merge`, { should_remove_source_branch: false, sha: mr.sha });
+      return { ...result, merged: true };
+    },
+    async syncWiki(pages, { prune = false, keep = ['home'], dry = false } = {}) {
+      const existing = new Map((await req('GET', '/wikis?with_content=1')).map((p) => [p.slug, p]));
+      const report = { created: [], updated: [], deleted: [], unchanged: [] };
+      const wanted = new Set(pages.map((p) => wikiSlug(p.title)));
+      if (prune)
+        for (const slug of existing.keys()) {
+          if (wanted.has(slug) || keep.some((k) => k.toLowerCase() === slug.toLowerCase())) continue;
+          if (!dry) await req('DELETE', `/wikis/${encodeURIComponent(slug)}`);
+          report.deleted.push(slug);
+        }
+      for (const p of pages) {
+        const slug = wikiSlug(p.title);
+        if (existing.has(slug)) {
+          if (existing.get(slug).content === p.content) {
+            report.unchanged.push(p.title);
+            continue;
+          }
+          if (!dry) await req('PUT', `/wikis/${encodeURIComponent(slug)}`, { title: p.title, content: p.content, format: 'markdown' });
+          report.updated.push(p.title);
+        } else {
+          if (!dry) await req('POST', '/wikis', { title: p.title, content: p.content, format: 'markdown' });
+          report.created.push(p.title);
+        }
+      }
+      return report;
+    },
+    wikiUrl: () => `${web()}/-/wikis/home`,
     async openChanges() {
       const mrs = await list('/merge_requests?state=opened');
       return Promise.all(

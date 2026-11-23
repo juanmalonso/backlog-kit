@@ -28,7 +28,18 @@ The VS Code board does the same when you drag a card.
 npm run pm:pr        # push + PR/MR with story, criteria, last log and Closes #<issue>
 ```
 
-The issue number comes from `npm run pm:issue -- US-NNN`, never from the id.
+The issue number comes from `npm run pm:issue -- US-NNN`, never from the id. Merge with
+`npm run pm:merge -- <n>` (only with green CI and no conflicts; `--dry-run` shows the commits that go in).
+
+## When the issue does not match
+
+`pm:advance` and `pm:issue` check that the issue in `github_issue` has this story's title. If they fail, **fix the
+data** (`npm run pm:issue -- --verify` audits them all): the degraded mode is writing to someone else's story. Do not
+change labels by hand: the script sends the full list in one request, because adding and removing labels in the same
+request clash and the API still answers 200.
+
+Kiwi: every transition syncs the test cases with Kiwi TCMS. If Kiwi does not answer, it warns and the status change
+goes on; re-sync later with `npm run pm:kiwi -- US-NNN`.
 
 ## Report
 

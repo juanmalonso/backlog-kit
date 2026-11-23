@@ -25,7 +25,7 @@ try {
 }
 const relPath = path.relative(root, path.resolve(root, file)).split(path.sep).join('/');
 const touchesPm =
-  relPath.startsWith('.pm/') && !relPath.startsWith('.pm/templates/') && relPath !== '.pm/backlog.md';
+  relPath.startsWith('.pm/') && !relPath.startsWith('.pm/templates/') && relPath !== `.pm/${cfg.backlogFile ?? 'backlog.md'}`;
 const touchesMigration = Boolean(cfg.migrations?.dir) && relPath.startsWith(`${cfg.migrations.dir.replace(/\/$/, '')}/`);
 if (!touchesPm && !touchesMigration) process.exit(0);
 

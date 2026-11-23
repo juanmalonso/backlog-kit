@@ -141,7 +141,7 @@ export function handle(msg) {
     return ok({
       protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0],
       capabilities: { tools: {} },
-      serverInfo: { name: 'backlog-kit', version: '0.4.0' },
+      serverInfo: { name: 'backlog-kit', version: '0.5.0' },
       instructions: 'Backlog del proyecto en .pm/. Leé con story_list, story_get y story_next; cambiá estados solo con story_advance, que aplica las reglas del proyecto.',
     });
   }
