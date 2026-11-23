@@ -140,6 +140,7 @@ export function templateContext(cfgRaw, opts = {}) {
     kiwi: Boolean(cfg.kiwi?.enabled),
     wiki: Boolean(cfg.wiki?.enabled),
     backlogPath: `.pm/${cfg.backlogFile ?? 'backlog.md'}`,
+    storyTemplate: storyTemplateName(cfgRaw),
     gitGuard: cfg.gitGuard.enabled,
     plugin: opts.claude === 'plugin',
     project: opts.claude !== 'plugin',
@@ -158,10 +159,38 @@ function walk(dir) {
 }
 
 /** Lista de acciones del init. No toca el disco. */
+/** Opciones que salen de un .pm/config.json existente: en una adopción, el config manda sobre las banderas. */
+export function optionsFromConfig(raw) {
+  const cfg = resolveConfig(raw);
+  return {
+    language: cfg.language,
+    storyPrefix: cfg.storyPrefix,
+    mainBranch: cfg.mainBranch,
+    checkCommand: cfg.checkCommand,
+    github: cfg.github?.enabled !== false,
+    gitGuard: cfg.gitGuard?.enabled !== false,
+    forge: cfg.forge?.provider === 'gitlab' ? 'gitlab' : 'github',
+    kiwi: Boolean(cfg.kiwi?.enabled),
+    wiki: Boolean(cfg.wiki?.enabled),
+    ...(raw.claude?.mode ? { claude: raw.claude.mode === 'plugin' ? 'plugin' : 'project' } : {}),
+  };
+}
+
+/** El kit ya está instalado (sus scripts existen), no sólo configurado: un config escrito a mano no alcanza. */
+export function kitInstalled(root) {
+  return existsSync(path.join(root, 'scripts', 'pm', 'backlog.mjs'));
+}
+
+function readConfig(root) {
+  const file = path.join(root, '.pm', 'config.json');
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+}
+
 export function planInit(root, opts, kitDir) {
-  const o = { ...DEFAULTS, ...opts };
+  const existing = readConfig(root);
+  const o = { ...DEFAULTS, ...opts, ...(existing ? optionsFromConfig(existing) : {}) };
   const gitlab = o.forge === 'gitlab';
-  const cfgRaw = buildConfig(o);
+  const cfgRaw = existing ?? buildConfig(o);
   const ctx = templateContext(cfgRaw, o);
   const lang = cfgRaw.language;
   const i18n = path.join(kitDir, 'i18n', lang);
@@ -185,7 +214,7 @@ export function planInit(root, opts, kitDir) {
 
   // Estructura de .pm/ (seed).
   add('.pm/config.json', `${JSON.stringify(cfgRaw, null, 2)}\n`, 'seed');
-  add('.pm/templates/story.md', tpl('story.md'), 'seed');
+  add(`.pm/templates/${storyTemplateName(cfgRaw)}`, tpl('story.md'), 'seed');
   add(`.pm/${ctx.epicId}-${slug(ctx.epicTitle)}/README.md`, tpl('epic.md'), 'seed-epic');
 
   // Docs: decisiones y hallazgos.
@@ -205,6 +234,8 @@ export function planInit(root, opts, kitDir) {
       for (const name of AGENTS[lang]) add(`.claude/agents/${name}.md`, tpl(`agents/${name}.md`), 'seed');
       if (o.mcp) add('.mcp.json', null, 'merge-mcp');
     }
+  }
+  if (o.skills || o.claudeFiles) {
     add('CLAUDE.md', `${CLAUDE_BEGIN}\n${tpl('claude.md').trim()}\n${CLAUDE_END}\n`, 'merge-claude');
     add('.claude/settings.json', null, 'merge-settings');
   }
@@ -215,7 +246,7 @@ export function planInit(root, opts, kitDir) {
 
   // Un proyecto que backlog-kit no inicializó puede tener sus propios scripts con el mismo nombre:
   // ahí no se pisa nada y el init se frena (un kit a medias deja el guard roto).
-  const managed = existsSync(path.join(root, '.pm', 'config.json'));
+  const managed = kitInstalled(root);
   const resolved = actions.map((a) => resolveAction(root, a, o, managed));
   return { config: cfgRaw, actions: resolved, conflicts: resolved.filter((a) => a.op === 'conflict').map((a) => a.path) };
 }
@@ -279,6 +310,19 @@ export function mergePackage(current, o, name) {
   return { text: `${JSON.stringify(pkg, null, 2)}\n`, changed: JSON.stringify(pkg) !== before };
 }
 
+/**
+ * Comando de un hook: no hace nada si el script no existe. Pasa en una rama que todavía no tiene el
+ * kit (settings.json suele ser local y vale para todas las ramas del checkout).
+ */
+export function hookCommand(script) {
+  return `f="$CLAUDE_PROJECT_DIR/${script}"; [ -f "$f" ] || exit 0; node "$f"`;
+}
+
+/** Nombre de la plantilla de historia en .pm/templates/ (`templates.story`, por defecto story.md). */
+export function storyTemplateName(cfgRaw) {
+  return cfgRaw?.templates?.story ?? 'story.md';
+}
+
 export function mergeSettings(current, o) {
   const s = current ? JSON.parse(current) : { $schema: 'https://json.schemastore.org/claude-code-settings.json' };
   const before = JSON.stringify(s);
@@ -299,24 +343,32 @@ export function mergeSettings(current, o) {
   ];
   for (const a of allow) if (!s.permissions.allow.includes(a)) s.permissions.allow.push(a);
   s.hooks ??= {};
-  const addHook = (event, matcher, command, statusMessage) => {
+  const addHook = (event, matcher, script, statusMessage) => {
     s.hooks[event] ??= [];
-    const present = s.hooks[event].some((h) => h.hooks?.some((x) => x.command === command));
+    const command = hookCommand(script);
+    let present = false;
+    for (const h of s.hooks[event])
+      for (const x of h.hooks ?? [])
+        if (typeof x.command === 'string' && x.command.includes(`/${script}"`)) {
+          x.command = command; // la forma vieja (node "…" a secas) pasa a la nueva
+          present = true;
+        }
     if (!present)
       s.hooks[event].push({ ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command, timeout: 20, ...(statusMessage ? { statusMessage } : {}) }] });
   };
   const en = o.language === 'en';
   // Con el plugin, guard y contexto los registra el plugin: acá quedaría duplicado.
   if (o.claude !== 'plugin') {
-    addHook('PostToolUse', 'Write|Edit|MultiEdit', 'node "$CLAUDE_PROJECT_DIR/scripts/hooks/pm-guard.mjs"', en ? 'Checking .pm/' : 'Verificando .pm/');
+    addHook('PostToolUse', 'Write|Edit|MultiEdit', 'scripts/hooks/pm-guard.mjs', en ? 'Checking .pm/' : 'Verificando .pm/');
     if (o.gitGuard)
-      addHook('PreToolUse', 'Bash', 'node "$CLAUDE_PROJECT_DIR/scripts/hooks/git-guard.mjs"', en ? 'Checking the main branch is untouched' : 'Verificando que no se toque la rama principal');
-    addHook('SessionStart', 'startup|resume|clear|compact', 'node "$CLAUDE_PROJECT_DIR/scripts/claude/session-context.mjs"', en ? 'Loading the current story' : 'Cargando la historia de la rama');
-    addHook('UserPromptSubmit', undefined, 'node "$CLAUDE_PROJECT_DIR/scripts/claude/prompt-context.mjs"');
-    addHook('Stop', undefined, 'node "$CLAUDE_PROJECT_DIR/scripts/claude/stop-check.mjs"');
+      addHook('PreToolUse', 'Bash', 'scripts/hooks/git-guard.mjs', en ? 'Checking the main branch is untouched' : 'Verificando que no se toque la rama principal');
+    addHook('SessionStart', 'startup|resume|clear|compact', 'scripts/claude/session-context.mjs', en ? 'Loading the current story' : 'Cargando la historia de la rama');
+    addHook('UserPromptSubmit', undefined, 'scripts/claude/prompt-context.mjs');
+    addHook('Stop', undefined, 'scripts/claude/stop-check.mjs');
   }
   // La línea de estado es de settings (un plugin no la puede poner); no pisa una que ya exista.
-  s.statusLine ??= { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/scripts/claude/statusline.mjs"' };
+  if (!s.statusLine) s.statusLine = { type: 'command', command: hookCommand('scripts/claude/statusline.mjs') };
+  else if (s.statusLine.command?.includes('/scripts/claude/statusline.mjs"')) s.statusLine.command = hookCommand('scripts/claude/statusline.mjs');
   return { text: `${JSON.stringify(s, null, 2)}\n`, changed: JSON.stringify(s) !== before };
 }
 
@@ -359,11 +411,21 @@ export function planUpgrade(root, kitDir) {
       kiwi: Boolean(cfg.kiwi?.enabled),
       wiki: Boolean(cfg.wiki?.enabled),
       skills: false,
+      claudeFiles: raw.claude?.mode !== 'plugin' && raw.claude?.files !== false,
+      mcp: false,
       ci: false,
     },
     kitDir,
   );
-  return { config: { ...raw, github: { enabled: cfg.github?.enabled !== false }, gitGuard: { enabled: cfg.gitGuard?.enabled !== false } }, actions: plan.actions.filter((a) => a.kind === 'kit' || a.kind === 'merge-package'), conflicts: [] };
+  const keep = new Set(['kit', 'merge-package', 'merge-settings', 'merge-claude']);
+  // El bloque de CLAUDE.md se actualiza si ya está; upgrade no lo agrega a un CLAUDE.md que no lo tiene.
+  const claudeBlockThere = (a) => existsSync(path.join(root, a.path)) && readFileSync(path.join(root, a.path), 'utf8').includes(CLAUDE_BEGIN);
+  const actions = plan.actions.filter((a) => keep.has(a.kind) && (a.kind !== 'merge-claude' || claudeBlockThere(a)));
+  return {
+    config: { ...raw, github: { enabled: cfg.github?.enabled !== false }, gitGuard: { enabled: cfg.gitGuard?.enabled !== false } },
+    actions,
+    conflicts: actions.filter((a) => a.op === 'conflict').map((a) => a.path),
+  };
 }
 
 /** Escribe las acciones y deja el proyecto andando: hooks de git y backlog generado. */

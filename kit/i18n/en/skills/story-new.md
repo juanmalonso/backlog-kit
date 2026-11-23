@@ -23,7 +23,7 @@ npm run pm:next-id        # never guess the id: it checks remote branches{{#gith
 **Why**: with parallel sessions, "highest in the backlog + 1" has already produced two stories with the same id on
 the same day. The highest number can live on another branch{{#github}} or only in an issue{{/github}}.
 
-Create `.pm/<epic>/{{storyPrefix}}-NNN-<kebab-slug>/README.md` from `.pm/templates/story.md`.
+Create `.pm/<epic>/{{storyPrefix}}-NNN-<kebab-slug>/README.md` from `.pm/templates/{{storyTemplate}}`.
 
 ## 3. Fill in the README
 
