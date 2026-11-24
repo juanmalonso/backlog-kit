@@ -1,7 +1,7 @@
 {
   "name": "backlog-kit-en",
   "displayName": "Backlog Kit",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Story backlog in .pm/: /story-* skills, criteria-reviewer and refiner subagents, automatic story context, log reminder and backlog MCP.",
   "author": {
     "name": "Juan Manuel Alonso"

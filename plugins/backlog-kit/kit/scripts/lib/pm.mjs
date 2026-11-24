@@ -145,6 +145,44 @@ export function dependencyIds(text, cfg) {
   return [...new Set(out)];
 }
 
+// Índices escritos a mano (`mirrors`): una tabla markdown con una fila por historia, el id en la
+// primera celda (suelto o como link) y el estado al principio de la última («DESCARTADO — …» vale).
+function mirrorRow(line, id) {
+  const m = line.match(/^\|\s*(?:\[([^\]]+)\]\([^)]*\)|([^|]+?))\s*\|/);
+  return Boolean(m) && (m[1] ?? m[2]).trim() === id;
+}
+
+/** Estados de la historia en el índice: uno por fila (una historia puede estar en dos épicas). */
+export function mirrorStates(text, id, stateList) {
+  const out = [];
+  for (const line of text.split('\n')) {
+    if (!mirrorRow(line, id)) continue;
+    const cells = line.split('|').slice(1, -1);
+    const last = (cells.at(-1) ?? '').trim();
+    // Sólo las filas cuya última celda es un estado: otra tabla puede nombrar la historia (bloqueadores, etc.).
+    const state = stateList.find((s) => last === s || last.startsWith(`${s} `) || last.startsWith(`${s}—`));
+    if (state) out.push(state);
+  }
+  return out;
+}
+
+/** Cambia el estado al principio de la última celda de cada fila de la historia; conserva el resto. */
+export function setMirrorState(text, id, state, stateList) {
+  let n = 0;
+  const lines = text.split('\n').map((line) => {
+    if (!mirrorRow(line, id)) return line;
+    const cells = line.split('|');
+    const i = cells.length - 2;
+    const cell = cells[i];
+    const current = stateList.find((s) => cell.trim() === s || cell.trim().startsWith(`${s} `) || cell.trim().startsWith(`${s}—`));
+    if (!current) return line;
+    cells[i] = cell.replace(current, () => state);
+    n += 1;
+    return cells.join('|');
+  });
+  return { text: lines.join('\n'), rows: n };
+}
+
 export function today(d = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;

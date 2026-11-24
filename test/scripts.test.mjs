@@ -170,3 +170,37 @@ describe('backlogFile', () => {
     expect(node(dir, 'scripts/pm/check.mjs').status).toBe(0);
   });
 });
+
+describe('mirrors y advertencias', () => {
+  const conCfg = (dir, extra) => {
+    const cfgFile = path.join(dir, '.pm/config.json');
+    writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(readFileSync(cfgFile, 'utf8')), backlogFile: 'tablero.md', ...extra }));
+    node(dir, 'scripts/pm/backlog.mjs', '--quiet');
+  };
+  it('pm:advance actualiza la fila del índice escrito a mano y pm:check avisa lo desalineado sin cortar', () => {
+    const dir = setup({ 'HU-001': { status: 'LISTO' }, 'HU-002': { status: 'HECHO' }, 'HU-003': { status: 'DESCARTADO' } });
+    conCfg(dir, { mirrors: ['.pm/backlog.md'] });
+    const indice = '# Backlog\n\n| ID | Título | Estado |\n|---|---|---|\n| HU-001 | Uno $& | LISTO |\n| [HU-002](x.md) | Dos | EN_REVIEW |\n| HU-003 | Tres | DESCARTADO — superseded por HU-002 |\n\n## Bloqueadores\n\n| HU | Bloqueador | Cómo |\n|---|---|---|\n| HU-001 | SMTP | Pedir credenciales |\n';
+    writeFileSync(path.join(dir, '.pm/backlog.md'), indice);
+    const chk = node(dir, 'scripts/pm/check.mjs');
+    expect(chk.status).toBe(0);
+    expect(chk.stderr).toMatch(/\.pm\/backlog\.md dice HU-002 EN_REVIEW; el README dice HECHO/);
+    expect(chk.stderr).not.toMatch(/HU-003/);
+    const r = node(dir, 'scripts/pm/advance.mjs', 'HU-001', 'EN_CURSO');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/\.pm\/backlog\.md: 1 fila\(s\) actualizada\(s\)/);
+    const after = readFileSync(path.join(dir, '.pm/backlog.md'), 'utf8');
+    expect(after).toMatch(/\| HU-001 \| Uno \$& \| EN_CURSO \|/);
+    expect(after).toMatch(/\| HU-003 \| Tres \| DESCARTADO — superseded por HU-002 \|/);
+    expect(after).toMatch(/\| HU-001 \| SMTP \| Pedir credenciales \|/);
+    expect(node(dir, 'scripts/pm/check.mjs', '--hook', '--quiet').stderr).toBe('');
+  });
+  it('con dependencies.cycles = "warn" un ciclo avisa y no corta; sin eso es error', () => {
+    const dir = setup({ 'HU-001': { status: 'LISTO', deps: ['HU-002 — x'] }, 'HU-002': { status: 'LISTO', deps: ['HU-001 — x'] } });
+    expect(node(dir, 'scripts/pm/check.mjs').status).toBe(1);
+    conCfg(dir, { dependencies: { cycles: 'warn' } });
+    const r = node(dir, 'scripts/pm/check.mjs');
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/advertencia[\s\S]*ciclo de dependencias/);
+  });
+});

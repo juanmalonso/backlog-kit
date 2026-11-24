@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.1
+
+**Adopción en un proyecto con `.pm/` propio**
+- `init` respeta un `.pm/config.json` existente por encima de las banderas: ya no crea `docs/decisiones`
+  si las decisiones están en otro lado, ni las skills apuntan a rutas que el proyecto no usa.
+- `"templates": { "story": "historia.md" }`: `pm:new` usaba la primera plantilla en orden alfabético
+  (en un `.pm/` adoptado, la de ADR).
+- Un config escrito a mano ya no alcanza para pisar scripts: si el kit no está instalado, un script
+  propio con el mismo nombre es conflicto, también en `upgrade`.
+- `upgrade` fusiona los hooks de Claude en `.claude/settings.json` y actualiza el bloque de `CLAUDE.md`
+  si ya está.
+- Los hooks de Claude no fallan en una rama que todavía no tiene los scripts del kit.
+- `mirrors`: `pm:advance` actualiza la celda de estado en índices escritos a mano (un `backlog.md` propio) y
+  `pm:check` avisa lo desalineado.
+- El guard distingue advertencias de errores: `dependencies.cycles: "warn"` deja pasar los ciclos que ya
+  existían, y el hook de Claude sólo corta por errores.
+- El `prepare` que pone `core.hooksPath` ya no rompe `npm ci` sin `.git` (un `docker build`, un CI) ni en Windows.
+
 ## 0.5.0
 
 **Módulos**

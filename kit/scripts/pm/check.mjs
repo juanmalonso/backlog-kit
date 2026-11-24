@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { project } from '../lib/project.mjs';
 import { backlogFile, renderBacklog } from './backlog.mjs';
+import { mirrorStates } from '../lib/pm.mjs';
 
 const args = new Set(process.argv.slice(2));
 const pm = project();
@@ -15,6 +16,8 @@ const { cfg, t } = pm;
 const K = cfg.keys;
 const S = cfg.states;
 const errors = [];
+// Se muestran pero no cortan: ciclos con `dependencies.cycles: "warn"` e índices escritos a mano.
+const warnings = [];
 
 function checkMigrations() {
   if (!cfg.migrations?.dir) return;
@@ -135,7 +138,7 @@ function checkDependencies() {
   const visit = (id, trail) => {
     if (state.get(id) === 'done') return;
     if (state.get(id) === 'open') {
-      errors.push(t.cycle([...trail.slice(trail.indexOf(id)), id].join(' → ')));
+      (cfg.dependencies?.cycles === 'warn' ? warnings : errors).push(t.cycle([...trail.slice(trail.indexOf(id)), id].join(' → ')));
       return;
     }
     state.set(id, 'open');
@@ -145,10 +148,27 @@ function checkDependencies() {
   for (const id of byId.keys()) visit(id, []);
 }
 
+function checkMirrors() {
+  for (const rel of cfg.mirrors ?? []) {
+    const file = path.join(pm.root, rel);
+    if (!existsSync(file)) {
+      warnings.push(t.mirrorMissingFile(rel));
+      continue;
+    }
+    const text = readFileSync(file, 'utf8');
+    for (const v of pm.loadStories().filter((s) => s.data).map((s) => pm.view(s))) {
+      const found = mirrorStates(text, v.id, cfg.stateList);
+      if (!found.length) warnings.push(t.mirrorMissing(v.id, rel));
+      for (const s of found) if (s !== v.status) warnings.push(t.mirrorMismatch(v.id, rel, s, v.status));
+    }
+  }
+}
+
 checkMigrations();
 if (!args.has('--solo-migraciones') && !args.has('--migrations-only')) {
   checkPm();
   checkDependencies();
+  checkMirrors();
   if (!errors.length) {
     const file = backlogFile(pm);
     const current = existsSync(file) ? readFileSync(file, 'utf8') : '';
@@ -156,6 +176,10 @@ if (!args.has('--solo-migraciones') && !args.has('--migrations-only')) {
   }
 }
 
+if (warnings.length && !args.has('--hook')) {
+  console.error(t.guardWarnings(warnings.length));
+  for (const w of warnings) console.error(`  - ${w}`);
+}
 if (errors.length) {
   console.error(t.guardTitle(errors.length));
   for (const e of errors) console.error(`  - ${e}`);

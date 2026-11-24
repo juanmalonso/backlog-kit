@@ -70,7 +70,8 @@ describe('init en español', () => {
     expect(pkg.scripts.test).toBe('vitest');
     expect(pkg.scripts['pm:advance']).toBe('node scripts/pm/advance.mjs');
     expect(pkg.scripts['pm:avanzar']).toBe('node scripts/pm/advance.mjs');
-    expect(pkg.scripts.prepare).toBe('git config core.hooksPath .githooks');
+    expect(pkg.scripts.prepare).toMatch(/git config core\.hooksPath \.githooks/);
+    expect(pkg.scripts.prepare).toMatch(/^node -e /);
     const claude = read(dir, 'CLAUDE.md');
     expect(claude).toMatch(/^# Demo\n\nNotas del proyecto\./);
     expect(claude).toMatch(/\/hu-nueva/);
@@ -232,9 +233,10 @@ describe('upgrade', async () => {
       github: { enabled: false },
       docs: { decisions: 'wiki/decisiones', findings: 'wiki/hallazgos', findingPrefix: 'HAL' },
     };
-    const dir = project({ '.pm/config.json': JSON.stringify(cfg), '.pm/E01-base/README.md': '---\nid: E01\nnombre: Base\n---\n', 'scripts/pm/check.mjs': '// viejo\n' });
+    const dir = project({ '.pm/config.json': JSON.stringify(cfg), '.pm/E01-base/README.md': '---\nid: E01\nnombre: Base\n---\n', 'scripts/pm/check.mjs': '// viejo\n', 'scripts/pm/backlog.mjs': '// viejo\n' });
     const plan = planUpgrade(dir, KIT);
-    expect(plan.actions.every((a) => a.path.startsWith('scripts/') || a.path.startsWith('.githooks/') || a.path === 'package.json')).toBe(true);
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.actions.every((a) => a.path.startsWith('scripts/') || a.path.startsWith('.githooks/') || a.path === 'package.json' || a.path === '.claude/settings.json')).toBe(true);
     expect(plan.actions.find((a) => a.path === 'scripts/pm/check.mjs').op).toBe('update');
     expect(plan.actions.some((a) => a.path.endsWith('sync-issue.mjs'))).toBe(false);
     applyInit(dir, plan);
@@ -256,6 +258,54 @@ describe('upgrade', async () => {
     expect(backlog).not.toMatch(/Spec/);
     expect(node(dir, 'scripts/pm/check.mjs').status).toBe(0);
   });
+  it('adopción: con config a mano y sin el kit instalado, un script propio con el mismo nombre es conflicto', () => {
+    const dir = project({ '.pm/config.json': JSON.stringify({ language: 'es', kiwi: { enabled: true } }), 'scripts/lib/kiwi.mjs': '// propio\n' });
+    expect(planUpgrade(dir, KIT).conflicts).toEqual(['scripts/lib/kiwi.mjs']);
+    expect(planInit(dir, { language: 'es' }, KIT).conflicts).toEqual(['scripts/lib/kiwi.mjs']);
+  });
+  it('actualiza el bloque de CLAUDE.md si ya está, y no lo agrega si no', () => {
+    const cfg = JSON.stringify({ language: 'es', github: { enabled: false } });
+    const sin = project({ '.pm/config.json': cfg, 'CLAUDE.md': '# Propio\n' });
+    expect(planUpgrade(sin, KIT).actions.some((a) => a.path === 'CLAUDE.md')).toBe(false);
+    const con = project({ '.pm/config.json': cfg, 'CLAUDE.md': '# Propio\n\n<!-- backlog-kit:begin -->\nviejo\n<!-- backlog-kit:end -->\n' });
+    const claude = planUpgrade(con, KIT).actions.find((a) => a.path === 'CLAUDE.md');
+    expect(claude.op).toBe('merge');
+    expect(claude.content).toMatch(/^# Propio\n/);
+    expect(claude.content).not.toMatch(/viejo/);
+  });
+});
+
+describe('adopción con config existente', () => {
+  it('init respeta el .pm/config.json: rutas de docs, plantilla de historia y forge', () => {
+    const cfg = {
+      language: 'es',
+      templates: { story: 'historia.md' },
+      docs: { decisions: '.pm/adr', findings: '.pm/hallazgos', findingPrefix: 'HAL' },
+      forge: { provider: 'gitlab', url: 'http://gitlab.local', project: 'g/r' },
+    };
+    const dir = project({ '.pm/config.json': JSON.stringify(cfg), '.pm/templates/historia.md': '# propia\n', '.pm/templates/adr.md': '# adr\n' });
+    const plan = planInit(dir, { language: 'en', forge: 'github' }, KIT);
+    const paths = plan.actions.filter((a) => a.op !== 'skip').map((a) => a.path);
+    expect(paths.some((p) => p.startsWith('docs/'))).toBe(false);
+    expect(paths.includes('.pm/templates/story.md')).toBe(false);
+    expect(paths.includes('.pm/adr/plantilla.md')).toBe(true);
+    const skill = plan.actions.find((a) => a.path === '.claude/skills/hu-nueva/SKILL.md');
+    expect(skill.content).toMatch(/\.pm\/templates\/historia\.md/);
+    expect(skill.content).toMatch(/GitLab/);
+    expect(plan.config).toEqual(cfg);
+  });
+  it('los hooks no fallan si el script no existe y no se duplican con la forma vieja', async () => {
+    const { mergeSettings } = await import('../src/init/scaffold.mjs');
+    const viejo = JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/scripts/claude/stop-check.mjs"' }] }] }, statusLine: { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/scripts/claude/statusline.mjs"' } });
+    const s = JSON.parse(mergeSettings(viejo, { language: 'es', github: true, gitGuard: true, claude: 'project', mcp: false }).text);
+    expect(s.hooks.Stop.length).toBe(1);
+    expect(s.hooks.Stop[0].hooks[0].command).toMatch(/\[ -f "\$f" \] \|\| exit 0; node "\$f"$/);
+    expect(s.statusLine.command).toMatch(/exit 0/);
+    const r = spawnSync('sh', ['-c', s.hooks.Stop[0].hooks[0].command], { env: { ...process.env, CLAUDE_PROJECT_DIR: project() }, encoding: 'utf8' });
+    expect(r.status).toBe(0);
+    const twice = mergeSettings(JSON.stringify(s), { language: 'es', github: true, gitGuard: true, claude: 'project', mcp: false });
+    expect(twice.changed).toBe(false);
+  });
 });
 
 describe('migraciones', () => {
@@ -269,5 +319,17 @@ describe('migraciones', () => {
     expect(r.stderr).toMatch(/hueco en la numeración, se esperaba 0002 y está 0003/);
     expect(r.stderr).not.toMatch(/README/);
     expect(node(dir, 'scripts/pm/next-id.mjs', '--migracion').stdout.trim()).toBe('0004');
+  });
+});
+
+describe('prepare', () => {
+  it('no rompe npm ci sin .git, y reemplaza la forma vieja', async () => {
+    const { PREPARE_HOOKS } = await import('../src/init/scaffold.mjs');
+    const dir = mkdtempSync(path.join(tmpdir(), 'backlog-kit-sin-git-'));
+    const r = spawnSync('sh', ['-c', PREPARE_HOOKS], { cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(dir) } });
+    expect(r.status).toBe(0);
+    const viejo = project({ 'package.json': JSON.stringify({ name: 'x', scripts: { prepare: 'husky && git config core.hooksPath .githooks' } }) });
+    const pkg = JSON.parse(planInit(viejo, { language: 'es', github: false }, KIT).actions.find((a) => a.path === 'package.json').content);
+    expect(pkg.scripts.prepare).toBe(`husky && ${PREPARE_HOOKS}`);
   });
 });

@@ -65,12 +65,21 @@ Sin VS Code, el mismo init por terminal:
 npx github:juanmalonso/backlog-kit init --lang es --fields phase,stage
 ```
 
-En un proyecto que ya tiene `.pm/config.json` (por ejemplo, uno que adoptó backlog-kit con su
-config escrita a mano), `upgrade` actualiza solo scripts y hooks, sin tocar nada más:
+**Adoptar en un proyecto que ya tiene su `.pm/`**: escribí primero `.pm/config.json` (ver
+[Configuración](#configuración)) y después corré `init`. Con un config presente, `init` lo respeta por
+encima de las banderas (rutas de decisiones y hallazgos, plantilla, forge, módulos) y no lo pisa. Si el
+proyecto tiene scripts propios con el mismo nombre que los del kit (`scripts/lib/kiwi.mjs`, por
+ejemplo), se frena y los lista: retiralos o renombralos en el mismo cambio.
+
+Con el kit ya instalado, `upgrade` actualiza scripts, git hooks, los hooks de Claude en
+`.claude/settings.json` (sin tocar lo demás) y el bloque del kit en `CLAUDE.md` si ya está:
 
 ```bash
 npx github:juanmalonso/backlog-kit upgrade
 ```
+
+Si `.claude/settings.json` no se commitea en tu proyecto, cada máquina corre `upgrade` una vez para
+tener los hooks. Los hooks no hacen nada en una rama que todavía no tiene el kit.
 
 También desde VS Code: **Backlog Kit: Actualizar scripts**.
 
@@ -246,6 +255,14 @@ Para adoptar backlog-kit en un proyecto que ya tenía su `.pm/`:
 
 - `"backlogFile": "tablero.md"`: el backlog generado va a `.pm/tablero.md` y no pisa un `backlog.md`
   escrito a mano.
+- `"templates": { "story": "historia.md" }`: la plantilla de historia que usan `pm:new` y las skills
+  (por defecto `story.md`).
+- `"mirrors": [".pm/backlog.md"]`: índices escritos a mano con una tabla `| ID | … | ESTADO |`. `pm:advance`
+  (y el tablero) actualiza la celda de estado de la fila de la historia, conservando lo que siga al estado
+  («DESCARTADO — superseded por …»); los totales siguen a mano. `pm:check` avisa las filas que faltan o no
+  coinciden, sin cortar.
+- `"dependencies": { "cycles": "warn" }`: los ciclos de dependencias se avisan y no cortan el guard (para
+  adoptar un `.pm/` que ya los tiene y arreglarlos de a poco).
 - `"dependencies": { "mode": "first", "skip": "^(precede|no depende)" }`: de cada ítem de la sección de
   dependencias toma solo el primer id (el resto suele ser contexto) y saltea las relaciones inversas.
 - `"requireBranch": false`: no exige el campo de rama en las historias en curso o en review.

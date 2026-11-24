@@ -4,7 +4,7 @@
 //                     [--status REFINANDO] [--sin-github]
 // Imprime el id y la ruta. Si queda fuera del backlog y GitHub está activo, crea el issue.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { setFields, today } from '../lib/pm.mjs';
 import { githubOff, project } from '../lib/project.mjs';
@@ -44,8 +44,11 @@ try {
   if (!cfg.priorities.includes(priority)) throw new Error(t.badValue(K.priority, priority, cfg.priorities.join(', ')));
 
   const tplDir = path.join(pm.PM, 'templates');
-  const tplName = existsSync(tplDir) ? readdirSync(tplDir).find((f) => f.endsWith('.md')) : null;
-  if (!tplName) throw new Error(t.newNoTemplate);
+  // La configurada (`templates.story`), o story.md; nunca "la primera": en un .pm/ adoptado
+  // la primera en orden alfabético suele ser la de ADR.
+  const wanted = cfg.templates?.story ?? 'story.md';
+  const tplName = existsSync(path.join(tplDir, wanted)) ? wanted : null;
+  if (!tplName) throw new Error(`${t.newNoTemplate} (${path.relative(pm.root, path.join(tplDir, wanted))})`);
   const nextArgs = [path.join(pm.root, 'scripts/pm/next-id.mjs'), ...(githubOff(args, cfg) ? ['--sin-github'] : [])];
   const id = execFileSync('node', nextArgs, { cwd: pm.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   const folder = path.join(pm.PM, epic.folder, `${id}-${slugify(title)}`);
